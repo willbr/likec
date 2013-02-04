@@ -35,12 +35,10 @@ def parse_lexp(token_stream):
     token_stream.advance()
 
     if token_stream.token.typ == 'BLOCK_START':
-        block = []
         token_stream.advance()
         while token_stream.token.typ != 'BLOCK_END':
-            block.append(parse_lexp(token_stream))
+            line.append(parse_lexp(token_stream))
         token_stream.advance()
-        line.append(block)
 
     return line
 
