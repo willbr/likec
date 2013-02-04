@@ -48,8 +48,11 @@ def parse_sexp(token_stream):
     while token_stream.token.typ != 'CLOSE_PAREN':
         if token_stream.token.typ == 'NEWLINE':
             token_stream.advance()
-        sexp.append(token_stream.token.value)
-        token_stream.advance()
+        elif token_stream.token.typ == 'OPEN_PAREN':
+            sexp.append(parse_sexp(token_stream))
+        else:
+            sexp.append(token_stream.token.value)
+            token_stream.advance()
 
     token_stream.skip('CLOSE_PAREN')
 
