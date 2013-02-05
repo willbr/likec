@@ -8,8 +8,6 @@ from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
 
-scope_stack = []
-
 def scope(fn):
     def wrapper(*args):
         scope_stack.append({
@@ -22,36 +20,29 @@ def scope(fn):
         return r
     return wrapper
 
-def close_statement(fn):
-    def wrapper(*args):
-        return fn(*args) + ';'
-    return wrapper
-
 
 def main ():
     input_text = open(argv[1]).read()
     ts = Tokenizer(input_text)
     statements = parse_tokens(ts)
+
     #pp (statements)
     #print('\n')
 
     for statement in statements:
-        print(compile_statement(statement))
+        s = compile_statement(statement)
+        #pp(s)
+        indent(s)
 
 
 def compile_statement(statements):
-    return compile_expression(statements, ';')
+    c = compile_expression(statements)
+    if isinstance(c, str):
+        return c + ';'
+    else:
+        return c
 
-def compile_expression(statements, eol=''):
-    compile_functions = {
-            'def': compile_def,
-            '='  : compile_assignment,
-            'for': compile_for,
-            }
-
-    for o in '+-*/':
-        compile_functions[o] = functools.partial(compile_infix, o)
-
+def compile_expression(statements):
     if isinstance(statements, str):
         return statements
     else:
@@ -59,23 +50,20 @@ def compile_expression(statements, eol=''):
         if func_name in compile_functions.keys():
             return compile_functions[func_name](*args)
         else:
-            return compile_call(func_name, *args) + eol
+            return compile_call(func_name, *args)
 
 @scope
 def compile_def (function_name, args, return_type, *body):
-    return '''{} {} ({}) {{
-{}
-}}'''.format(return_type,
-            function_name,
-            compile_arguments(args),
+    return [
+            '{} {} ({}) {{'.format(
+                return_type,
+                function_name,
+                compile_arguments(args)),
             compile_block(body),
-            )
+            '}']
 
 def compile_block(block):
-    block_lines = []
-    for line in block:
-        block_lines.append(indent(compile_statement(line)))
-    return '\n'.join(block_lines)
+    return [compile_statement(line) for line in block]
 
 def compile_arguments(args):
     return ', '.join(compile_argument(n, t)
@@ -98,10 +86,13 @@ def compile_argument(name, typ):
     else:
         return '{} {}'.format(typ, name)
 
-@close_statement
 def compile_assignment(lvalue, rvalue):
-    return '%s = %s' % (lvalue,
-            compile_expression(rvalue))
+    if in_scope(lvalue):
+        rexp = compile_expression(rvalue)
+        return '%s = %s' % (lvalue, rexp)
+    else:
+        declare(lvalue, rvalue)
+        return None
 
 def compile_call(name, *args):
     return '%s(%s)' % (name, ', '.join(args))
@@ -109,22 +100,42 @@ def compile_call(name, *args):
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
 
-@scope
 def compile_for(a, b, c, *body):
-    return '''for ({}; {}; {}) {{
-{}
-{}'''.format(a,b,c,
-        compile_block(body),
-        indent('}', -1))
+    return [
+            'for ({}; {}; {}) {{'.format(a,b,c),
+            compile_block(body),
+            '}']
 
-def indent(s, offset=0):
-    return ((len(scope_stack) + offset) * '    ') + s
+def indent(elem, level=0):
+    if isinstance(elem, str):
+        print (('    ' * level) + elem)
+    else:
+        head, body, tail = elem
+        indent(head, level)
+        for s in body:
+            indent(s, level + 1)
+        indent(tail, level)
+
+def in_scope(name):
+    s = scope_stack[-1]
+    return True
 
 def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
+
+scope_stack = []
+
+compile_functions = {
+        'def': compile_def,
+        '='  : compile_assignment,
+        'for': compile_for,
+        }
+
+for o in '+-*/':
+    compile_functions[o] = functools.partial(compile_infix, o)
 
 if __name__ == '__main__':
     main()
