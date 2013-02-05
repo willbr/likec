@@ -30,6 +30,8 @@ def main ():
         #pp(s)
         indent(s)
 
+    print(functions_declared)
+
 
 def compile_statement(statements):
     c = compile_expression(statements)
@@ -50,13 +52,18 @@ def compile_expression(statements):
 
 @scope
 def compile_def (function_name, args, return_type, *body):
+    global function_headers
     compiled_body = compile_block(body)
     new_body = compile_variable_declarations() + compiled_body
+    function_header = '{} {} ({})'.format(
+        return_type,
+        function_name,
+        compile_arguments(args))
+    if function_name != 'main':
+        function_declarations.append(function_header)
+        functions_declared.add(function_name)
     return [
-            '{} {} ({}) {{'.format(
-                return_type,
-                function_name,
-                compile_arguments(args)),
+            function_header + ' {',
             new_body,
             '}']
 
@@ -94,16 +101,41 @@ def compile_assignment(lvalue, rvalue):
         return None
 
 def compile_call(name, *args):
-    return '%s(%s)' % (name, ', '.join(args))
+    function_calls.add(name)
+    return '%s(%s)' % (name, ', '.join(compile_expression(a) for a in args))
 
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
 
 def compile_for(a, b, c, *body):
-    return [
-            'for ({}; {}; {}) {{'.format(a,b,c),
-            compile_block(body),
-            '}']
+    if b == 'in':
+        c__i = c + '__i'
+        c__length = c + '__length'
+
+
+        declare(c__i, '0')
+        declare(c__length, ['/',
+            ['sizeof', c],
+            ['sizeof', ['array-offset', c, '0']]])
+
+        c_element_type = scope_stack[-1][c][1][1:]
+        declare(a, default_value(c_element_type))
+
+        init = compile_expression(['=', c__i, '0'])
+        middle = 'a'
+        middle = '%s < %s' % (c__i, c__length)
+        step = '%s += 1' % c__i
+
+        return [
+                'for (%s) {' % '; '.join((init, middle, step)),
+                ['%s = %s[%s];' % (a, c, c__i)] + compile_block(body),
+                '}'
+                ]
+    else:
+        return [
+                'for ({}; {}; {}) {{'.format(a,b,c),
+                compile_block(body),
+                '}']
 
 def compile_array(*args):
     return '{' + ', '.join(args) + '}'
@@ -115,6 +147,16 @@ def compile_variable_declarations():
         rvalue, typ = value
         declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
     return declarations
+
+def compile_array_offset(name, offset):
+    return '%s[%s]' % (name, compile_expression(offset))
+
+def default_value(type_list):
+    t = type_list[0]
+    if t == 'int':
+        return '0'
+    else:
+        raise TypeError
 
 def indent(elem, level=0):
     if isinstance(elem, str):
@@ -132,8 +174,8 @@ def in_scope(name):
 
 def declare(lvalue, rvalue):
     s = scope_stack[-1]
-    rexp = compile_expression(rvalue)
-    s[lvalue] = [rexp, expression_type(rvalue)]
+    initial_expression = compile_expression(rvalue)
+    s[lvalue] = [initial_expression, expression_type(rvalue)]
 
 def expression_type(exp):
     if isinstance(exp, str):
@@ -159,11 +201,16 @@ def grouper(n, iterable, fillvalue=None):
 
 scope_stack = []
 
+function_declarations = []
+functions_declared = set()
+function_calls = set()
+
 compile_functions = {
         'def': compile_def,
         '='  : compile_assignment,
         'for': compile_for,
         'array': compile_array,
+        'array-offset': compile_array_offset,
         }
 
 for o in '+-*/':
