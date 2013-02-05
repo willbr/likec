@@ -10,11 +10,7 @@ pp = pprint.PrettyPrinter(indent=2).pprint
 
 def scope(fn):
     def wrapper(*args):
-        scope_stack.append({
-            'name': fn.__name__.split('_')[-1],
-            'local': {},
-            'global': {},
-            })
+        scope_stack.append({})
         r = fn(*args)
         scope_stack.pop()
         return r
@@ -54,22 +50,25 @@ def compile_expression(statements):
 
 @scope
 def compile_def (function_name, args, return_type, *body):
+    compiled_body = compile_block(body)
+    new_body = compile_variable_declarations() + compiled_body
     return [
             '{} {} ({}) {{'.format(
                 return_type,
                 function_name,
                 compile_arguments(args)),
-            compile_block(body),
+            new_body,
             '}']
 
 def compile_block(block):
-    return [compile_statement(line) for line in block]
+    r = (compile_statement(line) for line in block)
+    return [e for e in r if e]
 
 def compile_arguments(args):
-    return ', '.join(compile_argument(n, t)
+    return ', '.join(compile_variable(n, t)
             for n, t in grouper(2, args))
 
-def compile_argument(name, typ):
+def compile_variable(name, typ):
     if isinstance(typ, list):
         l = [typ[-1]]
         r = [name]
@@ -106,6 +105,17 @@ def compile_for(a, b, c, *body):
             compile_block(body),
             '}']
 
+def compile_array(*args):
+    return '{' + ', '.join(args) + '}'
+
+def compile_variable_declarations():
+    declarations = []
+    s = scope_stack[-1]
+    for lvalue, value in sorted(s.items()):
+        rvalue, typ = value
+        declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
+    return declarations
+
 def indent(elem, level=0):
     if isinstance(elem, str):
         print (('    ' * level) + elem)
@@ -118,7 +128,28 @@ def indent(elem, level=0):
 
 def in_scope(name):
     s = scope_stack[-1]
-    return True
+    return name in s.keys()
+
+def declare(lvalue, rvalue):
+    s = scope_stack[-1]
+    rexp = compile_expression(rvalue)
+    s[lvalue] = [rexp, expression_type(rvalue)]
+
+def expression_type(exp):
+    if isinstance(exp, str):
+        c = exp[0]
+        if c == '"':
+            return ['*', 'char']
+        elif c == '\'':
+            return ['char',]
+        else:
+            return ['int',]
+    else:
+        head, *tail = exp
+        if head == 'array':
+            return ['[]'] + expression_type(tail[0])
+        else:
+            return expression_type(tail[0])
 
 def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -132,6 +163,7 @@ compile_functions = {
         'def': compile_def,
         '='  : compile_assignment,
         'for': compile_for,
+        'array': compile_array,
         }
 
 for o in '+-*/':
