@@ -8,7 +8,7 @@ from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
 
-gensym_counter = 1000
+genvar_counter = 1000
 
 def scope(fn):
     def wrapper(*args):
@@ -110,8 +110,8 @@ def compile_infix(operator, *operands):
 
 def compile_for(a, b, c, *body):
     if b == 'in':
-        c__i = gensym(c + '__i')
-        c__length = gensym(c + '__length')
+        c__i = genvar(c + '__i')
+        c__length = genvar(c + '__length')
 
 
         declare(c__i, '0')
@@ -152,13 +152,13 @@ def compile_variable_declarations():
 def compile_array_offset(name, offset):
     return '%s[%s]' % (name, compile_expression(offset))
 
-def gensym(x=None):
-    global gensym_counter
+def genvar(x=None):
+    global genvar_counter
     if x:
-        r = '%s__%d' % (x, gensym_counter)
+        r = '%s__%d' % (x, genvar_counter)
     else:
-        r = 'G%d' % gensym_counter
-    gensym_counter += 1
+        r = 'G%d' % genvar_counter
+    genvar_counter += 1
     return r
 
 def default_value(type_list):
@@ -221,7 +221,7 @@ compile_functions = {
         'for': compile_for,
         'array': compile_array,
         'array-offset': compile_array_offset,
-        'gensym': gensym,
+        'genvar': genvar
         }
 
 for o in '+-*/':
