@@ -5,5 +5,13 @@ def main (argc int argv ([] * char)) int
     printf "b: %d\n" b
     for n in a
         printf "n: %d\n" n
+    yell "TIM"
     return 0
+
+def yell (msg *char)
+    printf "HEY! "
+    puts msg
+
+def beep
+    puts "beep!"
 
