@@ -8,6 +8,8 @@ from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
 
+gensym_counter = 1000
+
 def scope(fn):
     def wrapper(*args):
         scope_stack.append({})
@@ -24,13 +26,12 @@ def main ():
 
     #pp (statements)
     #print('\n')
+    compiled_statements = [compile_statement(s) for s in statements]
 
-    for statement in statements:
-        s = compile_statement(statement)
+    for s in compiled_statements:
         #pp(s)
         indent(s)
-
-    print(functions_declared)
+        print()
 
 
 def compile_statement(statements):
@@ -109,8 +110,8 @@ def compile_infix(operator, *operands):
 
 def compile_for(a, b, c, *body):
     if b == 'in':
-        c__i = c + '__i'
-        c__length = c + '__length'
+        c__i = gensym(c + '__i')
+        c__length = gensym(c + '__length')
 
 
         declare(c__i, '0')
@@ -150,6 +151,15 @@ def compile_variable_declarations():
 
 def compile_array_offset(name, offset):
     return '%s[%s]' % (name, compile_expression(offset))
+
+def gensym(x=None):
+    global gensym_counter
+    if x:
+        r = '%s__%d' % (x, gensym_counter)
+    else:
+        r = 'G%d' % gensym_counter
+    gensym_counter += 1
+    return r
 
 def default_value(type_list):
     t = type_list[0]
@@ -211,6 +221,7 @@ compile_functions = {
         'for': compile_for,
         'array': compile_array,
         'array-offset': compile_array_offset,
+        'gensym': gensym,
         }
 
 for o in '+-*/':
