@@ -30,7 +30,8 @@ class TokenizerStageOne:
                     val = mo.group(typ)
                     if typ == 'OPERATOR' and val in side_effect_operator:
                         typ = 'SIDE_EFFECT_OPERATOR'
-                    yield Token(typ, val, line, mo.start()-line_start)
+                    if typ != 'BLANK_LINE':
+                        yield Token(typ, val, line, mo.start()-line_start)
 
                 pos = mo.end()
                 mo = get_token(s, pos)
@@ -63,9 +64,7 @@ class Tokenizer:
 
             while ts.has_more_tokens:
                 t = ts.token
-                if t.typ == 'BLANK_LINE':
-                    ts.advance()
-                elif t.typ == 'NEWLINE':
+                if t.typ == 'NEWLINE':
                     yield t
                     a = t
                     ts.advance()
@@ -117,12 +116,12 @@ if __name__ == "__main__":
     input_text = open(argv[1]).read()
 
     ts = TokenizerStageOne(input_text)
-    for t in ts.tokens:
-        print (t)
+    #for t in ts.tokens:
+        #print (t)
 
-    print('-----')
+    #print('-----')
 
-    ts = Tokenizer(input_text)
+    #ts = Tokenizer(input_text)
     while ts.has_more_tokens:
         print(ts.token)
         ts.advance()
