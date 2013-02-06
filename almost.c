@@ -3,6 +3,7 @@ def main (argc int argv ([] * char)) int
     = b (+ 1 2 (* 3 4))
     = c 0
     printf "b: %d\n" b
+    printf "c: %d\n" c
     for n in a
         printf "n: %d\n" n
     yell "TIM"

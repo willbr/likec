@@ -28,6 +28,8 @@ def main ():
     #print('\n')
     compiled_statements = [compile_statement(s) for s in statements]
 
+    print_includes()
+
     for fd in function_declarations:
         print (fd + ';')
     print()
@@ -207,6 +209,24 @@ def expression_type(exp):
         else:
             return expression_type(tail[0])
 
+def print_includes():
+    includes = set()
+    for f in function_calls:
+        library_name = lookup_library(f)
+        if library_name != None:
+            includes.add(library_name)
+
+    for i in includes:
+        print('#include <%s>' % i)
+    print()
+
+def lookup_library(function_name):
+    for library, functions in libraries.items():
+        for function in functions:
+            if function == function_name:
+                return library
+    return None
+
 def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
@@ -218,6 +238,32 @@ scope_stack = []
 function_declarations = []
 functions_declared = set()
 function_calls = set()
+libraries = {
+        'stdio.h': [
+            # File Operations
+            'fopen',
+            # Formatted Output
+            'printf',
+            # Formatted Input
+            'fscanf',
+            # Character Input and Output
+            'puts',
+            # Direct Input and Output
+            'fread',
+            'fwrite',
+            # File Positioning
+            'fseek',
+            'ftell',
+            'rewind',
+            'fgetpos',
+            'fsetpos',
+            # Error
+            'clearerr',
+            'feof',
+            'ferror',
+            'perror',
+            ],
+        }
 
 compile_functions = {
         'def': compile_def,
