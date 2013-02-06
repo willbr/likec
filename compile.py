@@ -28,6 +28,10 @@ def main ():
     #print('\n')
     compiled_statements = [compile_statement(s) for s in statements]
 
+    for fd in function_declarations:
+        print (fd + ';')
+    print()
+
     for s in compiled_statements:
         #pp(s)
         indent(s)

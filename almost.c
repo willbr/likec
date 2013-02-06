@@ -6,9 +6,10 @@ def main (argc int argv ([] * char)) int
     for n in a
         printf "n: %d\n" n
     yell "TIM"
+    beep
     return 0
 
-def yell (msg *char)
+def yell (msg (* char))
     printf "HEY! "
     puts msg
 
