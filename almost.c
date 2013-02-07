@@ -26,3 +26,14 @@ obj Int
         = (-> new_element data) new_int
         list:append new_element
 
+obj Iterator
+    finished bool
+    stage int
+    local (* void)
+
+    def new (size_of_locals size_t)
+        = (-> self finished) false
+        = (-> self stage) 0
+        = (-> self local) (malloc size_of_locals)
+        memset (-> self local) 0 size_of_locals
+

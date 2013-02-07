@@ -2,6 +2,8 @@ import pprint
 import string
 import itertools
 import functools
+import collections
+import re
 
 from pf_parser import parse_tokens
 from Tokenizer import Tokenizer
@@ -13,7 +15,7 @@ genvar_counter = 1000
 
 def scope(fn):
     def wrapper(*args):
-        scope_stack.append({})
+        scope_stack.append(collections.OrderedDict())
         r = fn(*args)
         #pp(scope_stack[-1])
         scope_stack.pop()
@@ -102,7 +104,7 @@ def compile_obj(name, *body):
         new_body = []
 
         for f, f_type in fields:
-            new_body.append(['=', '.%s' % f, default_value(f_type)])
+            new_body.append(['=', ['->', 'self', f], default_value(f_type)])
 
         compile_obj_def(
                 name,
@@ -121,10 +123,12 @@ def compile_obj(name, *body):
     else:
         return None
 
-def compile_obj_def(object_name, method_name, *tail):
+def compile_obj_def(object_name, method_name, args, *tail):
     global compiled_methods
     function_name = '%s__%s' % (object_name, method_name)
-    compiled_methods.append(compile_def(function_name, *tail))
+    compiled_methods.append(compile_def(function_name,
+        ['self', ['*', object_name]] + args,
+        *tail))
 
 def compile_block(block):
     r = (compile_statement(line) for line in block)
@@ -152,11 +156,10 @@ def compile_variable(name, typ):
         return '{} {}'.format(typ, name)
 
 def compile_assignment(lvalue, rvalue):
-    lvalue = expand_variable(lvalue)
     if in_scope(lvalue):
         rexp = compile_expression(rvalue)
         return '%s = %s' % (
-                expand_deref(lvalue),
+                expand_variable(lvalue),
                 rexp)
     else:
         declare(lvalue, rvalue)
@@ -180,7 +183,6 @@ def compile_for(a, b, c, *body):
     if b == 'in':
         c__i = genvar(c + '__i')
         c__length = genvar(c + '__length')
-
 
         declare(c__i, '0')
         declare(c__length, ['/',
@@ -235,15 +237,37 @@ def compile_cast(typ, exp):
             compile_variable('', typ),
             compile_expression(exp))
 
+def compile_typedef(*args):
+    *a, name = args
+    return 'typedef %s %s' % (''.join(a), name)
+
+def compile_new(object_name):
+    return '%s__new()' % object_name
+
+def compile_indirect_component(*args):
+    return '->'.join(compile_expression(a) for a in args)
+
 def expand_deref(v):
     deref_level = 0
     while isinstance(v, list):
         deref_level += 1
         v = v[1]
-    return '*' * deref_level + v
+    while deref_level:
+        v = '(*%s)' % v
+        deref_level -= 1
+    return v
 
 def expand_variable(v):
-    return expand_self(v)
+    if isinstance(v, list):
+        head, *tail = v
+        if head == 'deref':
+            return '(*%s)' % expand_variable(*tail)
+        elif head == '->':
+            return '(%s)' % '->'.join(expand_variable(t) for t in tail)
+        else:
+            raise ValueError
+    else:
+        return v
 
 def expand_object(v):
     def is_uppercase(c):
@@ -252,13 +276,6 @@ def expand_object(v):
     if is_uppercase(v[0]):
         if v[-2:] != '_t':
             v += '_t'
-    return v
-
-def expand_self(v):
-    if v == '.':
-        return 'self'
-    elif v[0] == '.':
-        return 'self->%s' % v[1:]
     return v
 
 def genvar(x=None):
@@ -293,7 +310,7 @@ def indent(elem, level=0):
         indent(tail, level)
 
 def in_scope(name):
-    while isinstance(name, list) and name[0] == 'deref':
+    while isinstance(name, list):
         name = name[1]
 
     if name == 'self':
@@ -323,8 +340,10 @@ def expression_type(exp):
         head, *tail = exp
         if head == 'array':
             return ['[]'] + expression_type(tail[0])
-        if head == 'cast':
+        elif head == 'cast':
             return tail[0]
+        elif head == 'new':
+            return ['*', tail[0]]
         else:
             return expression_type(tail[0])
 
@@ -352,7 +371,7 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
-scope_stack = []
+scope_stack = [collections.OrderedDict()]
 
 function_declarations = []
 functions_declared = set()
@@ -396,6 +415,9 @@ compile_functions = {
         'return': compile_return,
         'array-offset': compile_array_offset,
         'cast': compile_cast,
+        'typedef': compile_typedef,
+        'new': compile_new,
+        '->': compile_indirect_component,
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
