@@ -1,19 +1,18 @@
 def main (argc int argv ([] * char)) int
-    = a (array 0 1 2 3 4)
-    = b (+ 1 2 (* 3 4))
-    = c 0
-    printf "b: %d\n" b
-    printf "c: %d\n" c
-    for n in a
-        printf "n: %d\n" n
-    yell "TIM"
-    beep
+    = a (List 0 1 2 3 4)
+    a:append 5
     return 0
 
-def yell (msg (* char))
-    printf "HEY! "
-    puts msg
+obj List
+    next (* List)
+    data (* void)
 
-def beep
-    puts "beep!"
+    def append (new_element (* List)) (* List)
+        while (isnt .next NULL)
+            = . .next
+        = .next new_element
+        return new_element
 
+obj Int
+    def new () (* int)
+        return (malloc (sizeof int))

@@ -6,10 +6,9 @@ pp = pprint.PrettyPrinter(indent=2).pprint
 
 def main():
     input_text = open(argv[1]).read()
+    print(input_text)
     ts = Tokenizer(input_text)
     statements = parse_tokens(ts)
-    print('\n')
-    print(input_text)
     print('\n')
     pp (statements)
 

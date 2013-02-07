@@ -1,4 +1,5 @@
 import pprint
+import string
 import itertools
 import functools
 
@@ -32,11 +33,16 @@ def main ():
 
     for fd in function_declarations:
         print (fd + ';')
+
     print()
 
     for s in compiled_statements:
         #pp(s)
         indent(s)
+        print()
+
+    for md in compiled_methods:
+        indent(md)
         print()
 
 
@@ -49,7 +55,7 @@ def compile_statement(statements):
 
 def compile_expression(statements):
     if isinstance(statements, str):
-        return statements
+        return expand_variable(statements)
     else:
         func_name, *args = statements
         if func_name in compile_functions.keys():
@@ -62,10 +68,13 @@ def compile_def (function_name, args, return_type, *body):
     global function_headers
     compiled_body = compile_block(body)
     new_body = compile_variable_declarations() + compiled_body
-    function_header = '{} {} ({})'.format(
-        return_type,
+
+    call_sig = '({}({}))'.format(
         function_name,
         compile_arguments(args))
+
+    function_header = compile_variable(call_sig, return_type)
+
     if function_name != 'main':
         function_declarations.append(function_header)
         functions_declared.add(function_name)
@@ -73,6 +82,45 @@ def compile_def (function_name, args, return_type, *body):
             function_header + ' {',
             new_body,
             '}']
+
+def compile_obj(name, *body):
+    compiled_fields = []
+    fields = []
+    methods = []
+
+    for exp in body:
+        first, second, *tail = exp
+        if first == 'def':
+            methods.append(second)
+            compile_obj_def(name, second, *tail)
+        else:
+            fields.append([first, second])
+            compiled_fields.append(compile_variable(first, second) + ';')
+
+    if 'new' not in methods:
+        new_body = []
+
+        for f, f_type in fields:
+            new_body.append(['=', '.%s' % f, default_value(f_type)])
+
+        compile_obj_def(
+                name,
+                'new',
+                [],
+                ['*', '%s_t' % name],
+                *new_body
+                )
+
+    return [
+            'typedef struct %s_s {' % name,
+            compiled_fields,
+            '} %s_t;' % name,
+            ]
+
+def compile_obj_def(object_name, method_name, *tail):
+    global compiled_methods
+    function_name = '%s__%s' % (object_name, method_name)
+    compiled_methods.append(compile_def(function_name, *tail))
 
 def compile_block(block):
     r = (compile_statement(line) for line in block)
@@ -84,7 +132,7 @@ def compile_arguments(args):
 
 def compile_variable(name, typ):
     if isinstance(typ, list):
-        l = [typ[-1]]
+        l = [expand_object(typ[-1])]
         r = [name]
         for t in typ[:-1]:
             if t == '*':
@@ -100,6 +148,7 @@ def compile_variable(name, typ):
         return '{} {}'.format(typ, name)
 
 def compile_assignment(lvalue, rvalue):
+    lvalue = expand_variable(lvalue)
     if in_scope(lvalue):
         rexp = compile_expression(rvalue)
         return '%s = %s' % (lvalue, rexp)
@@ -108,8 +157,15 @@ def compile_assignment(lvalue, rvalue):
         return None
 
 def compile_call(name, *args):
+    compiled_args = [compile_expression(a) for a in args]
+
+    if name.find(':') >= 0:
+        obj, method = name.split(':', 1)
+        name = '%s__%s' % ('Int', method)
+        compiled_args.insert(0, obj)
+
     function_calls.add(name)
-    return '%s(%s)' % (name, ', '.join(compile_expression(a) for a in args))
+    return '%s(%s)' % (name, ', '.join(compiled_args))
 
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
@@ -144,6 +200,13 @@ def compile_for(a, b, c, *body):
                 compile_block(body),
                 '}']
 
+def compile_while(cond, *body):
+    compile_condition = compile_expression(cond)
+    return [
+            'while ({}) {{'.format(compile_condition),
+            compile_block(body),
+            '}']
+
 def compile_array(*args):
     return '{' + ', '.join(args) + '}'
 
@@ -158,6 +221,28 @@ def compile_variable_declarations():
 def compile_array_offset(name, offset):
     return '%s[%s]' % (name, compile_expression(offset))
 
+def compile_return(exp):
+    return 'return %s' % compile_expression(exp)
+
+def expand_variable(v):
+    return expand_self(v)
+
+def expand_object(v):
+    def is_uppercase(c):
+        return c in string.ascii_uppercase
+
+    if is_uppercase(v[0]):
+        if v[-2:] != '_t':
+            v += '_t'
+    return v
+
+def expand_self(v):
+    if v == '.':
+        return 'self'
+    elif v[0] == '.':
+        return 'self->%s' % v[1:]
+    return v
+
 def genvar(x=None):
     global genvar_counter
     if x:
@@ -171,7 +256,10 @@ def default_value(type_list):
     t = type_list[0]
     if t == 'int':
         return '0'
+    if t == '*':
+        return 'NULL'
     else:
+        print (t)
         raise TypeError
 
 def indent(elem, level=0):
@@ -185,8 +273,13 @@ def indent(elem, level=0):
         indent(tail, level)
 
 def in_scope(name):
-    s = scope_stack[-1]
-    return name in s.keys()
+    if name == 'self':
+        return True
+    elif name[:6] == 'self->':
+        return True
+    else:
+        s = scope_stack[-1]
+        return name in s.keys()
 
 def declare(lvalue, rvalue):
     s = scope_stack[-1]
@@ -238,6 +331,8 @@ scope_stack = []
 function_declarations = []
 functions_declared = set()
 function_calls = set()
+compiled_methods = []
+
 libraries = {
         'stdio.h': [
             # File Operations
@@ -267,11 +362,16 @@ libraries = {
 
 compile_functions = {
         'def': compile_def,
+        'obj': compile_obj,
         '='  : compile_assignment,
         'for': compile_for,
+        'while': compile_while,
         'array': compile_array,
+        'return': compile_return,
         'array-offset': compile_array_offset,
-        'genvar': genvar
+        'genvar': genvar,
+        'is': functools.partial(compile_infix, '=='),
+        'isnt': functools.partial(compile_infix, '!='),
         }
 
 for o in '+-*/':
