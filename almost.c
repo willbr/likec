@@ -15,10 +15,8 @@ obj List
 
 typedef int Int_t
 obj Int
-    def new () (* int)
-        = i-pointer (cast (* int) (malloc (sizeof int))) 
-        = (deref i-pointer) 0
-        return i-pointer 
+    def new ()
+        = (deref self) 0
 
     def append (list (* List) n int)
         = new_element (new List)

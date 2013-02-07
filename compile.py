@@ -34,18 +34,30 @@ def main ():
 
     print_includes()
 
+    for t in typedefs:
+        indent(t)
+
+    print()
+
+    for s in structures:
+        indent(s)
+        print()
+
+    print()
+
     for fd in function_declarations:
         print (fd + ';')
 
     print()
 
-    for s in compiled_statements:
-        #pp(s)
-        indent(s)
-        print()
 
     for md in compiled_methods:
         indent(md)
+        print()
+
+    for s in compiled_statements:
+        #pp(s)
+        indent(s)
         print()
 
 
@@ -69,12 +81,13 @@ def compile_expression(statements):
 @scope
 def compile_def (function_name, args, return_type, *body):
     global function_headers
-    compiled_body = compile_block(body)
-    new_body = compile_variable_declarations() + compiled_body
 
     call_sig = '({}({}))'.format(
         function_name,
         compile_arguments(args))
+
+    compiled_body = compile_block(body)
+    new_body = compile_variable_declarations() + compiled_body
 
     function_header = compile_variable(call_sig, return_type)
 
@@ -101,6 +114,7 @@ def compile_obj(name, *body):
             compiled_fields.append(compile_variable(first, second) + ';')
 
     if 'new' not in methods:
+        obj_typedef = '%s_t' % name
         new_body = []
 
         for f, f_type in fields:
@@ -115,28 +129,56 @@ def compile_obj(name, *body):
                 )
 
     if fields:
-        return [
-                'typedef struct %s_s {' % name,
+        typedefs.append('typedef struct {0}_s {0}_t;'.format(name))
+
+        structures.append([
+                'struct %s_s {' % name,
                 compiled_fields,
-                '} %s_t;' % name,
-                ]
+                '};',
+                ])
     else:
         return None
 
-def compile_obj_def(object_name, method_name, args, *tail):
+def compile_obj_def(
+        object_name,
+        method_name,
+        args,
+        return_type,
+        *body):
     global compiled_methods
     function_name = '%s__%s' % (object_name, method_name)
-    compiled_methods.append(compile_def(function_name,
-        ['self', ['*', object_name]] + args,
-        *tail))
+    obj_typedef = '%s_t' % object_name
+
+    if method_name == 'new':
+        new_args = args
+
+        if return_type == 'void':
+            return_type = ['*', obj_typedef]
+
+        new_body = []
+        new_body.append(['=', 'self', ['cast', ['*', obj_typedef], ['malloc', ['sizeof', obj_typedef]]]])
+        new_body.extend(body)
+        new_body.append(['return', 'self'])
+    else:
+        new_args = ['self', ['*', object_name]] + args
+        new_body = body
+
+
+    compiled_methods.append(compile_def(
+        function_name,
+        new_args,
+        return_type,
+        *new_body))
 
 def compile_block(block):
     r = (compile_statement(line) for line in block)
     return [e for e in r if e]
 
 def compile_arguments(args):
-    return ', '.join(compile_variable(n, t)
-            for n, t in grouper(2, args))
+    paired_args = [(n, t) for n, t in grouper(2, args)]
+    for n, t in paired_args:
+        declare(n, t, argument=True)
+    return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
 def compile_variable(name, typ):
     if isinstance(typ, list):
@@ -162,7 +204,7 @@ def compile_assignment(lvalue, rvalue):
                 expand_variable(lvalue),
                 rexp)
     else:
-        declare(lvalue, rvalue)
+        declare(root_variable(lvalue), rvalue)
         return None
 
 def compile_call(name, *args):
@@ -170,7 +212,8 @@ def compile_call(name, *args):
 
     if name.find(':') >= 0:
         obj, method = name.split(':', 1)
-        name = '%s__%s' % ('Int', method)
+        #print(obj, variable_type(obj))
+        name = '%s__%s' % (variable_type(obj), method)
         compiled_args.insert(0, obj)
 
     function_calls.add(name)
@@ -222,7 +265,9 @@ def compile_variable_declarations():
     declarations = []
     s = scope_stack[-1]
     for lvalue, value in sorted(s.items()):
-        rvalue, typ = value
+        rvalue, typ, argument = value
+        if argument:
+            continue
         declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
     return declarations
 
@@ -239,23 +284,14 @@ def compile_cast(typ, exp):
 
 def compile_typedef(*args):
     *a, name = args
-    return 'typedef %s %s' % (''.join(a), name)
+    typedefs.append('typedef %s %s;' % (''.join(a), name))
+    return None
 
 def compile_new(object_name):
     return '%s__new()' % object_name
 
 def compile_indirect_component(*args):
     return '->'.join(compile_expression(a) for a in args)
-
-def expand_deref(v):
-    deref_level = 0
-    while isinstance(v, list):
-        deref_level += 1
-        v = v[1]
-    while deref_level:
-        v = '(*%s)' % v
-        deref_level -= 1
-    return v
 
 def expand_variable(v):
     if isinstance(v, list):
@@ -288,11 +324,19 @@ def genvar(x=None):
     return r
 
 def default_value(type_list):
-    t = type_list[0]
+    if isinstance(type_list, list):
+        t = type_list[0]
+    else:
+        t = type_list
+
     if t == 'int':
         return '0'
-    if t == '*':
+    elif t == '*':
         return 'NULL'
+    elif t == '[]':
+        return '{}'
+    elif t == 'size_t':
+        return '0'
     else:
         print (t)
         raise TypeError
@@ -310,30 +354,43 @@ def indent(elem, level=0):
         indent(tail, level)
 
 def in_scope(name):
+    name = root_variable(name)
+    s = scope_stack[-1]
+    return name in s.keys()
+
+def root_variable(name):
     while isinstance(name, list):
         name = name[1]
+    return name
 
-    if name == 'self':
-        return True
-    elif name[:6] == 'self->':
-        return True
-    else:
-        s = scope_stack[-1]
-        return name in s.keys()
+def variable_type(name):
+    s = scope_stack[-1]
+    _, typ, _ = s[name]
+    return typ[-1]
 
-def declare(lvalue, rvalue):
+def declare(lvalue, rvalue, argument=False):
     #print(lvalue, rvalue)
     s = scope_stack[-1]
-    initial_expression = compile_expression(rvalue)
-    s[lvalue] = [initial_expression, expression_type(rvalue)]
+    if argument:
+        s[lvalue] = [None, rvalue, argument]
+    else:
+        initial_expression = compile_expression(rvalue)
+        s[lvalue] = [initial_expression, expression_type(rvalue), argument]
 
 def expression_type(exp):
     if isinstance(exp, str):
+        if exp in ['true', 'false']:
+            return ['bool']
+        elif exp == 'NULL':
+            return ['*']
+
         c = exp[0]
         if c == '"':
             return ['*', 'char']
         elif c == '\'':
-            return ['char',]
+            return ['char']
+        elif c == '{':
+            return ['[]']
         else:
             return ['int',]
     else:
@@ -349,6 +406,8 @@ def expression_type(exp):
 
 def print_includes():
     includes = set()
+    includes.add('stdbool.h')
+    includes.add('stdio.h')
     for f in function_calls:
         library_name = lookup_library(f)
         if library_name != None:
@@ -373,6 +432,8 @@ def grouper(n, iterable, fillvalue=None):
 
 scope_stack = [collections.OrderedDict()]
 
+typedefs = []
+structures = []
 function_declarations = []
 functions_declared = set()
 function_calls = set()
@@ -402,6 +463,50 @@ libraries = {
             'feof',
             'ferror',
             'perror',
+            ],
+        'string.h': [
+            'strcpy',
+            'strncpy',
+            'strcmp',
+            'strncmp',
+            'strchr',
+            'strrchr',
+            'strspn',
+            'strcspn',
+            'strpbrk',
+            'strstr',
+            'strlen',
+            'strerror',
+            'strtok',
+            'memcpy',
+            'memmove',
+            'memcmp',
+            'memchr',
+            'memset',
+            ],
+        'stdlib.h': [
+            'atof',
+            'atoi',
+            'atol',
+            'strtod',
+            'strtol',
+            'rand',
+            'srand',
+            'calloc',
+            'malloc',
+            'realloc',
+            'free',
+            'abort',
+            'exit',
+            'atexit',
+            'system',
+            'getenv',
+            'bsearch',
+            'qsort',
+            'abs',
+            'labs',
+            'div',
+            'ldiv',
             ],
         }
 
