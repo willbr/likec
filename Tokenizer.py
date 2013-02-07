@@ -31,7 +31,16 @@ class TokenizerStageOne:
                     if typ == 'OPERATOR' and val in side_effect_operator:
                         typ = 'SIDE_EFFECT_OPERATOR'
                     if typ != 'BLANK_LINE':
-                        yield Token(typ, val, line, mo.start()-line_start)
+                        if typ == 'ID':
+                            def replace_hyphen(x):
+                                if x == '-':
+                                    return '_'
+                                else:
+                                    return x
+                            val = ''.join(map(replace_hyphen,re.split('(->|-)',val)))
+                            yield Token(typ, val, line, mo.start()-line_start)
+                        else:
+                            yield Token(typ, val, line, mo.start()-line_start)
 
                 pos = mo.end()
                 mo = get_token(s, pos)
