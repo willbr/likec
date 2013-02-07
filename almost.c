@@ -15,4 +15,7 @@ obj List
 
 obj Int
     def new () (* int)
-        return (malloc (sizeof int))
+        = i-pointer (cast (* int) (malloc (sizeof int))) 
+        = (deref i-pointer) 0
+        return 0
+

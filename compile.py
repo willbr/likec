@@ -15,6 +15,7 @@ def scope(fn):
     def wrapper(*args):
         scope_stack.append({})
         r = fn(*args)
+        #pp(scope_stack[-1])
         scope_stack.pop()
         return r
     return wrapper
@@ -111,11 +112,14 @@ def compile_obj(name, *body):
                 *new_body
                 )
 
-    return [
-            'typedef struct %s_s {' % name,
-            compiled_fields,
-            '} %s_t;' % name,
-            ]
+    if fields:
+        return [
+                'typedef struct %s_s {' % name,
+                compiled_fields,
+                '} %s_t;' % name,
+                ]
+    else:
+        return None
 
 def compile_obj_def(object_name, method_name, *tail):
     global compiled_methods
@@ -151,7 +155,9 @@ def compile_assignment(lvalue, rvalue):
     lvalue = expand_variable(lvalue)
     if in_scope(lvalue):
         rexp = compile_expression(rvalue)
-        return '%s = %s' % (lvalue, rexp)
+        return '%s = %s' % (
+                expand_deref(lvalue),
+                rexp)
     else:
         declare(lvalue, rvalue)
         return None
@@ -224,6 +230,18 @@ def compile_array_offset(name, offset):
 def compile_return(exp):
     return 'return %s' % compile_expression(exp)
 
+def compile_cast(typ, exp):
+    return '(%s)(%s)' % (
+            compile_variable('', typ),
+            compile_expression(exp))
+
+def expand_deref(v):
+    deref_level = 0
+    while isinstance(v, list):
+        deref_level += 1
+        v = v[1]
+    return '*' * deref_level + v
+
 def expand_variable(v):
     return expand_self(v)
 
@@ -265,6 +283,8 @@ def default_value(type_list):
 def indent(elem, level=0):
     if isinstance(elem, str):
         print (('    ' * level) + elem)
+    elif elem == None:
+        pass
     else:
         head, body, tail = elem
         indent(head, level)
@@ -273,6 +293,9 @@ def indent(elem, level=0):
         indent(tail, level)
 
 def in_scope(name):
+    while isinstance(name, list) and name[0] == 'deref':
+        name = name[1]
+
     if name == 'self':
         return True
     elif name[:6] == 'self->':
@@ -282,6 +305,7 @@ def in_scope(name):
         return name in s.keys()
 
 def declare(lvalue, rvalue):
+    #print(lvalue, rvalue)
     s = scope_stack[-1]
     initial_expression = compile_expression(rvalue)
     s[lvalue] = [initial_expression, expression_type(rvalue)]
@@ -299,6 +323,8 @@ def expression_type(exp):
         head, *tail = exp
         if head == 'array':
             return ['[]'] + expression_type(tail[0])
+        if head == 'cast':
+            return tail[0]
         else:
             return expression_type(tail[0])
 
@@ -369,6 +395,7 @@ compile_functions = {
         'array': compile_array,
         'return': compile_return,
         'array-offset': compile_array_offset,
+        'cast': compile_cast,
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
