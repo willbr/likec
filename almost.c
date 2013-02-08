@@ -7,31 +7,18 @@ obj List
     next (* List)
     data (* void)
 
-    def append (new_element (* List)) (* List)
+    def append (new_element (* List))
         while (isnt (-> self next) NULL)
             = self (-> self next)
         = (-> self next) new_element
-        return new_element
 
 typedef int Int_t
 obj Int
-    def new ()
-        = (deref self) 0
+    def new
+        = (deref self ) 0
 
     def append (list (* List) n int)
-        = new_element (new List)
-        = new_int (new Int)
+        = new_element (List)
+        = new_int (Int n)
         = (-> new_element data) new_int
-        list:append new_element
-
-obj Iterator
-    finished bool
-    stage int
-    local (* void)
-
-    def new (size_of_locals size_t)
-        = (-> self finished) false
-        = (-> self stage) 0
-        = (-> self local) (malloc size_of_locals)
-        memset (-> self local) 0 size_of_locals
-
+        List:append list new_element

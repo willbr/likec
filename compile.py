@@ -43,8 +43,6 @@ def main ():
         indent(s)
         print()
 
-    print()
-
     for fd in function_declarations:
         print (fd + ';')
 
@@ -58,7 +56,6 @@ def main ():
     for s in compiled_statements:
         #pp(s)
         indent(s)
-        print()
 
 
 def compile_statement(statements):
@@ -159,6 +156,9 @@ def compile_obj_def(
         new_body.append(['=', 'self', ['cast', ['*', obj_typedef], ['malloc', ['sizeof', obj_typedef]]]])
         new_body.extend(body)
         new_body.append(['return', 'self'])
+    elif method_name == 'append' and object_name != 'List':
+        new_args = args
+        new_body = body
     else:
         new_args = ['self', ['*', object_name]] + args
         new_body = body
@@ -171,13 +171,26 @@ def compile_obj_def(
         *new_body))
 
 def compile_block(block):
+    lines = []
     r = (compile_statement(line) for line in block)
-    return [e for e in r if e]
+    for e in r:
+        if isinstance(e, str):
+            lines.append(e)
+        elif isinstance(e, list):
+            for a in e: 
+                if isinstance(a, list):
+                    lines.append(a)
+                else:
+                    if a[-1] in '{}':
+                        lines.append(a)
+                    else:
+                        lines.append(a + ';')
+    return lines
 
 def compile_arguments(args):
     paired_args = [(n, t) for n, t in grouper(2, args)]
     for n, t in paired_args:
-        declare(n, t, argument=True)
+        declare(n, t, 'argument')
     return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
 def compile_variable(name, typ):
@@ -198,14 +211,26 @@ def compile_variable(name, typ):
         return '{} {}'.format(typ, name)
 
 def compile_assignment(lvalue, rvalue):
+    lines = []
+    if is_obj_constructor(rvalue):
+        obj_type, *args = rvalue
+        if obj_type == 'List':
+            rvalue = [obj_type]
+            for arg in args:
+                element_exp = compile_expression(
+                        ['%s:append' % lvalue, arg])
+                lines.append(element_exp)
+        else:
+            pass
+
     if in_scope(lvalue):
         rexp = compile_expression(rvalue)
-        return '%s = %s' % (
-                expand_variable(lvalue),
-                rexp)
+        lines.insert(0, '%s = %s' % (expand_variable(lvalue), rexp))
     else:
+        #print(lvalue)
         declare(root_variable(lvalue), rvalue)
-        return None
+
+    return lines
 
 def compile_call(name, *args):
     compiled_args = [compile_expression(a) for a in args]
@@ -213,8 +238,18 @@ def compile_call(name, *args):
     if name.find(':') >= 0:
         obj, method = name.split(':', 1)
         #print(obj, variable_type(obj))
-        name = '%s__%s' % (variable_type(obj), method)
-        compiled_args.insert(0, obj)
+        if method == 'append':
+            if is_uppercase(obj[0]):
+                name = '%s__%s' % (obj, method)
+            else:
+                name = '%s__%s' % (expression_type(args[0])[0], method)
+                compiled_args.insert(0, obj)
+        else:
+            name = '%s__%s' % (variable_type(obj), method)
+            compiled_args.insert(0, obj)
+    else:
+        if is_obj(name):
+            name += '__new'
 
     function_calls.add(name)
     return '%s(%s)' % (name, ', '.join(compiled_args))
@@ -265,10 +300,9 @@ def compile_variable_declarations():
     declarations = []
     s = scope_stack[-1]
     for lvalue, value in sorted(s.items()):
-        rvalue, typ, argument = value
-        if argument:
-            continue
-        declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
+        rvalue, typ, var_type = value
+        if var_type == 'local':
+            declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
     return declarations
 
 def compile_array_offset(name, offset):
@@ -287,9 +321,6 @@ def compile_typedef(*args):
     typedefs.append('typedef %s %s;' % (''.join(a), name))
     return None
 
-def compile_new(object_name):
-    return '%s__new()' % object_name
-
 def compile_indirect_component(*args):
     return '->'.join(compile_expression(a) for a in args)
 
@@ -305,10 +336,10 @@ def expand_variable(v):
     else:
         return v
 
-def expand_object(v):
-    def is_uppercase(c):
-        return c in string.ascii_uppercase
+def is_uppercase(c):
+    return c in string.ascii_uppercase
 
+def expand_object(v):
     if is_uppercase(v[0]):
         if v[-2:] != '_t':
             v += '_t'
@@ -341,17 +372,29 @@ def default_value(type_list):
         print (t)
         raise TypeError
 
+#def indent(elem, level=0):
+    #if isinstance(elem, str):
+        #print (('    ' * level) + elem)
+    #elif elem == None:
+        #pass
+    #else:
+        #head, body, tail = elem
+        #indent(head, level)
+        #for s in body:
+            #indent(s, level + 1)
+        #indent(tail, level)
+
 def indent(elem, level=0):
     if isinstance(elem, str):
         print (('    ' * level) + elem)
     elif elem == None:
         pass
     else:
-        head, body, tail = elem
-        indent(head, level)
-        for s in body:
-            indent(s, level + 1)
-        indent(tail, level)
+        for e in elem:
+            if isinstance(e, list):
+                indent(e, level + 1)
+            else:
+                indent(e, level)
 
 def in_scope(name):
     name = root_variable(name)
@@ -368,32 +411,39 @@ def variable_type(name):
     _, typ, _ = s[name]
     return typ[-1]
 
-def declare(lvalue, rvalue, argument=False):
+def declare(lvalue, rvalue, var_type='local'):
     #print(lvalue, rvalue)
     s = scope_stack[-1]
-    if argument:
-        s[lvalue] = [None, rvalue, argument]
+    if var_type == 'argument':
+        s[lvalue] = [None, rvalue, var_type]
     else:
         initial_expression = compile_expression(rvalue)
-        s[lvalue] = [initial_expression, expression_type(rvalue), argument]
+        s[lvalue] = [initial_expression, expression_type(rvalue), var_type]
+
+def is_obj_constructor(rvalue):
+    return isinstance(rvalue, list) and is_uppercase(rvalue[0][0])
+
+def is_obj(rvalue):
+    return isinstance(rvalue, str) and is_uppercase(rvalue[0])
 
 def expression_type(exp):
     if isinstance(exp, str):
         if exp in ['true', 'false']:
-            return ['bool']
+            return ['Bool']
         elif exp == 'NULL':
             return ['*']
 
         c = exp[0]
         if c == '"':
-            return ['*', 'char']
+            return ['*', 'Char']
         elif c == '\'':
-            return ['char']
+            return ['Char']
         elif c == '{':
             return ['[]']
         else:
-            return ['int',]
+            return ['Int',]
     else:
+        #print(exp)
         head, *tail = exp
         if head == 'array':
             return ['[]'] + expression_type(tail[0])
@@ -401,8 +451,11 @@ def expression_type(exp):
             return tail[0]
         elif head == 'new':
             return ['*', tail[0]]
+        elif is_uppercase(head[0]):
+            return ['*', head]
         else:
-            return expression_type(tail[0])
+            #print(exp)
+            raise TypeError
 
 def print_includes():
     includes = set()
@@ -521,7 +574,6 @@ compile_functions = {
         'array-offset': compile_array_offset,
         'cast': compile_cast,
         'typedef': compile_typedef,
-        'new': compile_new,
         '->': compile_indirect_component,
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
