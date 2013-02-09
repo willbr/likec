@@ -1,4 +1,5 @@
 import collections
+import itertools
 import re
 from sys import argv
 
@@ -94,7 +95,16 @@ class Tokenizer:
                             indent_depth -= 1
                             yield Token('BLOCK_END', '', a.line, a.column)
                 else:
-                    yield t
+                    if t.typ == 'ID':
+                        for v in split_id(t.value):
+                            if v == ':':
+                                yield Token('ID', 'method', t.line, t.column)
+                            elif v == '':
+                                raise ValueError('Error spliting ID', t)
+                            else:
+                                yield Token('ID', v, t.line, t.column)
+                    else:
+                        yield t
                     ts.advance()
 
         self.tokens = tokenize(input_string)
@@ -118,8 +128,28 @@ class Tokenizer:
     def at_keyword(self, keyword):
         return self.token.typ == 'KEYWORD' and self.token.value == keyword
 
+def split_id(value):
+    r = []
+    if value in [':','->']:
+        return [value]
+    s = re.split('(:|->)', value)
+    for a, b in grouper(2, s):
+        if b == None:
+            r.append(a)
+        else:
+            r.append(b)
+            r.append(a)
+    return r
+                        #for v in re.split('(:|->)',t.value):
+
 def expected(wanted, found):
     raise SyntaxError('wanted: %s; found: %s' % (wanted, found))
+
+def grouper(n, iterable, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 if __name__ == "__main__":
     input_text = open(argv[1]).read()

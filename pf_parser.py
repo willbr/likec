@@ -57,6 +57,7 @@ def parse_lexp(token_stream):
 def parse_sexp(token_stream):
     token_stream.skip('OPEN_PAREN')
     sexp = []
+
     while token_stream.token.typ != 'CLOSE_PAREN':
         if token_stream.token.typ == 'NEWLINE':
             token_stream.advance()

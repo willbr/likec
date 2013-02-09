@@ -1,6 +1,6 @@
 def main (argc int argv ([] * char)) int
     = a (new List 0 1 2 3 4)
-    method a append 5
+    a:append 5
     return 0
 
 obj List
@@ -21,4 +21,4 @@ obj Int
         = new_element (new List)
         = new_int (new Int n)
         = (-> new_element data) new_int
-        method List append list new_element
+        List:append list new_element
