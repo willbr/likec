@@ -9,7 +9,9 @@ obj List
     next (* List)
     data (* void)
 
-    def append (new_element (* List))
+    def append (new_data (* void))
+        = new_element (new List)
+        = new_element->data new_data
         while (isnt self->next NULL)
             = self self->next
         = self->next new_element
@@ -18,10 +20,4 @@ typedef Int_t int
 obj Int
     def new (n int)
         = (deref self ) n
-
-    def append (list (* List) n int)
-        = new_element (new List)
-        = new_int (new Int n)
-        = new_element->data new_int
-        List:append list new_element
 

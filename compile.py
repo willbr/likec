@@ -211,23 +211,23 @@ def compile_variable(name, typ):
 
 def compile_assignment(lvalue, rvalue):
     lines = []
+    post_lines = []
+
     if is_obj_constructor(rvalue):
         new, obj_type, *args = rvalue
         if obj_type == 'List':
-            rvalue = [new, obj_type]
+            rvalue = rvalue[:2]
             for arg in args:
-                element_exp = compile_expression(
-                        ['method', lvalue, 'append' ,arg])
-                lines.append(element_exp)
-        else:
-            pass
+                post_lines.append(['method', lvalue, 'append', arg])
 
     if in_scope(lvalue):
         rexp = compile_expression(rvalue)
         lines.insert(0, '%s = %s' % (expand_variable(lvalue), rexp))
     else:
-        #print(lvalue)
         declare(root_variable(lvalue), rvalue)
+
+    for line in post_lines:
+        lines.append(compile_expression(line))
 
     return lines
 
@@ -328,10 +328,11 @@ def compile_method(obj, method, *args):
         return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
     else:
         if method == 'append':
-            et = expression_type(args[0])[0]
-            return '%s__%s(%s)' % (et, method, compile_arguments('NULL', obj, *args)) 
+            new_args = (['new', expression_type(a)[0], a] for a in args)
         else:
-            return 'method nop %s %s %s' % (obj, method, args)
+            new_args = args
+        return '%s__%s(%s)' % (variable_type(obj), method,
+                compile_arguments(obj, *new_args))
 
 def compile_arguments(*args):
     return ', '.join(compile_expression(a) for a in args)
