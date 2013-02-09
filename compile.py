@@ -204,7 +204,10 @@ def compile_variable(name, typ):
             r.append(')')
         return '%s %s' % (''.join(l), ''.join(r))
     else:
-        return '{} {}'.format(typ, name)
+        if name == '':
+            return typ
+        else:
+            return '%s %s' % (typ, name)
 
 def compile_assignment(lvalue, rvalue):
     lines = []
@@ -238,6 +241,9 @@ def compile_infix(operator, *operands):
 
 def compile_for(a, b, c, *body):
     if b == 'in':
+        vt = variable_type(c)
+        if vt == 'List':
+            return compile_for_in_list(a[0], a[1], c, *body)
         c__i = genvar(c + '__i')
         c__length = genvar(c + '__length')
 
@@ -260,10 +266,25 @@ def compile_for(a, b, c, *body):
                 '}'
                 ]
     else:
+        init = compile_expression(a)[0]
+        cond = compile_expression(b)
+        step = compile_expression(c)[0]
+        for_header = '; '.join((init, cond, step))
         return [
-                'for ({}; {}; {}) {{'.format(a,b,c),
+                init,
+                'for (%s) {' % for_header,
                 compile_block(body),
                 '}']
+
+def compile_for_in_list(bind_name, bind_type, list_name, *body):
+    iterator_name = genvar(list_name, 'iterator')
+    declare(iterator_name, ['cast', ['*', 'List'], 'NULL'])
+    declare(bind_name, default_value(bind_type))
+    init = ['=', iterator_name, list_name]
+    cond = ['isnt', ['->',iterator_name,'next'], 'NULL']
+    step = ['=', iterator_name, ['->',iterator_name,'next']]
+    bind = ['=', bind_name, ['deref', ['cast', ['*', bind_type], ['->', ['->', iterator_name, 'next'], 'data']]]]
+    return compile_for(init, cond, step, bind, *body)
 
 def compile_while(cond, *body):
     compile_condition = compile_expression(cond)
@@ -295,9 +316,8 @@ def compile_cast(typ, exp):
             compile_variable('', typ),
             compile_expression(exp))
 
-def compile_typedef(*args):
-    *a, name = args
-    typedefs.append('typedef %s %s;' % (''.join(a), name))
+def compile_typedef(name, typ):
+    typedefs.append('typedef %s %s;' % (compile_variable('', typ), name))
     return None
 
 def compile_indirect_component(*args):
@@ -318,6 +338,9 @@ def compile_arguments(*args):
 
 def compile_new(obj, *args):
     return compile_method(obj, 'new', 'NULL', *args)
+
+def compile_deref(*args):
+    return '(*%s)' % compile_arguments(*args)
 
 def expand_variable(v):
     if isinstance(v, list):
@@ -340,10 +363,11 @@ def expand_object(v):
             v += '_t'
     return v
 
-def genvar(x=None):
+def genvar(*args):
     global genvar_counter
+    x = '__'.join(args)
     if x:
-        r = '%s__%d' % (x, genvar_counter)
+        r = '%s%d' % (x, genvar_counter)
     else:
         r = 'G%d' % genvar_counter
     genvar_counter += 1
@@ -569,6 +593,7 @@ compile_functions = {
         'array-offset': compile_array_offset,
         'cast': compile_cast,
         'typedef': compile_typedef,
+        'deref': compile_deref,
         '->': compile_indirect_component,
         'method': compile_method,
         'new': compile_new,

@@ -1,6 +1,8 @@
 def main (argc int argv ([] * char)) int
     = a (new List 0 1 2 3 4)
     a:append 5
+    for (n int) in a
+        printf "%d\n" n
     return 0
 
 obj List
@@ -12,7 +14,7 @@ obj List
             = self self->next
         = self->next new_element
 
-typedef int Int_t
+typedef Int_t int
 obj Int
     def new (n int)
         = (deref self ) n
@@ -22,3 +24,4 @@ obj Int
         = new_int (new Int n)
         = new_element->data new_int
         List:append list new_element
+
