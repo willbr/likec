@@ -99,6 +99,10 @@ class Tokenizer:
                         for v in split_id(t.value):
                             if v == ':':
                                 yield Token('ID', 'method', t.line, t.column)
+                            elif v in '(':
+                                yield Token('OPEN_PAREN', '(', t.line, t.column)
+                            elif v in ')':
+                                yield Token('CLOSE_PAREN', ')', t.line, t.column)
                             elif v == '':
                                 raise ValueError('Error spliting ID', t)
                             else:
@@ -139,8 +143,10 @@ def split_id(value):
         else:
             r.append(b)
             r.append(a)
+    if r[0] == '->':
+        r.insert(0, '(')
+        r.append(')')
     return r
-                        #for v in re.split('(:|->)',t.value):
 
 def expected(wanted, found):
     raise SyntaxError('wanted: %s; found: %s' % (wanted, found))
@@ -154,13 +160,13 @@ def grouper(n, iterable, fillvalue=None):
 if __name__ == "__main__":
     input_text = open(argv[1]).read()
 
-    ts = TokenizerStageOne(input_text)
+    #ts = TokenizerStageOne(input_text)
     #for t in ts.tokens:
         #print (t)
 
     #print('-----')
 
-    #ts = Tokenizer(input_text)
+    ts = Tokenizer(input_text)
     while ts.has_more_tokens:
         print(ts.token)
         ts.advance()

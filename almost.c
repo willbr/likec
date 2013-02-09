@@ -8,9 +8,9 @@ obj List
     data (* void)
 
     def append (new_element (* List))
-        while (isnt (-> self next) NULL)
-            = self (-> self next)
-        = (-> self next) new_element
+        while (isnt self->next NULL)
+            = self self->next
+        = self->next new_element
 
 typedef int Int_t
 obj Int
@@ -20,5 +20,5 @@ obj Int
     def append (list (* List) n int)
         = new_element (new List)
         = new_int (new Int n)
-        = (-> new_element data) new_int
+        = new_element->data new_int
         List:append list new_element
