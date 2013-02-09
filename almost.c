@@ -1,6 +1,6 @@
 def main (argc int argv ([] * char)) int
-    = a (List 0 1 2 3 4)
-    a:append 5
+    = a (new List 0 1 2 3 4)
+    method a append 5
     return 0
 
 obj List
@@ -14,11 +14,11 @@ obj List
 
 typedef int Int_t
 obj Int
-    def new
-        = (deref self ) 0
+    def new (n int)
+        = (deref self ) n
 
     def append (list (* List) n int)
-        = new_element (List)
-        = new_int (Int n)
+        = new_element (new List)
+        = new_int (new Int n)
         = (-> new_element data) new_int
-        List:append list new_element
+        method List append list new_element

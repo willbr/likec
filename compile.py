@@ -81,7 +81,7 @@ def compile_def (function_name, args, return_type, *body):
 
     call_sig = '({}({}))'.format(
         function_name,
-        compile_arguments(args))
+        compile_def_arguments(args))
 
     compiled_body = compile_block(body)
     new_body = compile_variable_declarations() + compiled_body
@@ -147,8 +147,6 @@ def compile_obj_def(
     obj_typedef = '%s_t' % object_name
 
     if method_name == 'new':
-        new_args = args
-
         if return_type == 'void':
             return_type = ['*', obj_typedef]
 
@@ -156,12 +154,10 @@ def compile_obj_def(
         new_body.append(['=', 'self', ['cast', ['*', obj_typedef], ['malloc', ['sizeof', obj_typedef]]]])
         new_body.extend(body)
         new_body.append(['return', 'self'])
-    elif method_name == 'append' and object_name != 'List':
-        new_args = args
-        new_body = body
     else:
-        new_args = ['self', ['*', object_name]] + args
         new_body = body
+
+    new_args = ['self', ['*', object_name]] + args
 
 
     compiled_methods.append(compile_def(
@@ -187,7 +183,7 @@ def compile_block(block):
                         lines.append(a + ';')
     return lines
 
-def compile_arguments(args):
+def compile_def_arguments(args):
     paired_args = [(n, t) for n, t in grouper(2, args)]
     for n, t in paired_args:
         declare(n, t, 'argument')
@@ -213,12 +209,12 @@ def compile_variable(name, typ):
 def compile_assignment(lvalue, rvalue):
     lines = []
     if is_obj_constructor(rvalue):
-        obj_type, *args = rvalue
+        new, obj_type, *args = rvalue
         if obj_type == 'List':
-            rvalue = [obj_type]
+            rvalue = [new, obj_type]
             for arg in args:
                 element_exp = compile_expression(
-                        ['%s:append' % lvalue, arg])
+                        ['method', lvalue, 'append' ,arg])
                 lines.append(element_exp)
         else:
             pass
@@ -234,23 +230,6 @@ def compile_assignment(lvalue, rvalue):
 
 def compile_call(name, *args):
     compiled_args = [compile_expression(a) for a in args]
-
-    if name.find(':') >= 0:
-        obj, method = name.split(':', 1)
-        #print(obj, variable_type(obj))
-        if method == 'append':
-            if is_uppercase(obj[0]):
-                name = '%s__%s' % (obj, method)
-            else:
-                name = '%s__%s' % (expression_type(args[0])[0], method)
-                compiled_args.insert(0, obj)
-        else:
-            name = '%s__%s' % (variable_type(obj), method)
-            compiled_args.insert(0, obj)
-    else:
-        if is_obj(name):
-            name += '__new'
-
     function_calls.add(name)
     return '%s(%s)' % (name, ', '.join(compiled_args))
 
@@ -323,6 +302,22 @@ def compile_typedef(*args):
 
 def compile_indirect_component(*args):
     return '->'.join(compile_expression(a) for a in args)
+
+def compile_method(obj, method, *args):
+    if is_obj(obj):
+        return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
+    else:
+        if method == 'append':
+            et = expression_type(args[0])[0]
+            return '%s__%s(%s)' % (et, method, compile_arguments('NULL', obj, *args)) 
+        else:
+            return 'method nop %s %s %s' % (obj, method, args)
+
+def compile_arguments(*args):
+    return ', '.join(compile_expression(a) for a in args)
+
+def compile_new(obj, *args):
+    return compile_method(obj, 'new', 'NULL', *args)
 
 def expand_variable(v):
     if isinstance(v, list):
@@ -421,7 +416,7 @@ def declare(lvalue, rvalue, var_type='local'):
         s[lvalue] = [initial_expression, expression_type(rvalue), var_type]
 
 def is_obj_constructor(rvalue):
-    return isinstance(rvalue, list) and is_uppercase(rvalue[0][0])
+    return isinstance(rvalue, list) and rvalue[0] == 'new'
 
 def is_obj(rvalue):
     return isinstance(rvalue, str) and is_uppercase(rvalue[0])
@@ -575,6 +570,8 @@ compile_functions = {
         'cast': compile_cast,
         'typedef': compile_typedef,
         '->': compile_indirect_component,
+        'method': compile_method,
+        'new': compile_new,
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
