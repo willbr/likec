@@ -2,7 +2,8 @@ def main (argc int argv ([] * char)) int
     = a (new List 0 1 2 3 4)
     a:append 5
     for (n int) in a
-        printf "%d\n" n
+        for (n int) in a
+            printf "%d\n" n
     return 0
 
 obj List

@@ -88,8 +88,9 @@ class Tokenizer:
                             yield Token('BLOCK_START', '', b.line, b.column)
                             indent_depth = line_indent
                         else:
-                            indent_depth = line_indent
-                            yield Token('BLOCK_END', '', b.line, b.column)
+                            while indent_depth > line_indent:
+                                indent_depth -= 1
+                                yield Token('BLOCK_END', '', b.line, b.column)
                     else:
                         while indent_depth:
                             indent_depth -= 1
