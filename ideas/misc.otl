@@ -1,6 +1,8 @@
 tokenize IDs
     self->next->data
         (-> (-> self next) data)
+        or
+        (-> self next data)
 
 auto insert main type info
 
@@ -30,6 +32,8 @@ add Heredocs
 this is my comment
 it can have multiple lines
 END
+
+in tokenize; check for here docs on NEWLINE match
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
@@ -69,6 +73,7 @@ change append to a macro rather than a method of List
 add macro map
 
 def double (n int) int
+    return (* n 2)
 
 = a (List 1 2 3)
 = b (map double a)
@@ -90,6 +95,14 @@ def macro_map_1234 (f (fn (int) int) old-list List) List
 = a (List 1 2 3)
 = b (macro_map_1234 double a)
 
+=> or if it only has a single return value at the end
+
+= a (List 1 2 3)
+= macro__new-list1234 (List)
+for (n int) in a
+    append (double n) to macro__new-list1234
+= b macro__new-list1234
+
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 
@@ -101,4 +114,20 @@ add global variables
 add SDL object
 
 play with const
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+add Structs
+not a pointer unlike objects
+have one method; a constructor called new
+
+struct Point
+    x int
+    y int
+
+    def new (x int y int) Point
+        @x = x
+        @y = y
+        return @
 
