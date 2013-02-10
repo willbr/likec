@@ -1,9 +1,3 @@
-tokenize IDs
-    self->next->data
-        (-> (-> self next) data)
-        or
-        (-> self next data)
-
 auto insert main type info
 
 auto insert commands into main function from global space
@@ -13,9 +7,6 @@ escape IDs for special characters
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-alias @ to self
-alias @next to self->next
 
 method calls
     change (a:length) to (a length)

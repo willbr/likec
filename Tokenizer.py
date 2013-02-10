@@ -137,27 +137,40 @@ def split_id(value):
     r = []
     if value in [':','->']:
         return [value]
-    s = re.split('(:|->)', value)
-    for a, b in grouper(2, s):
-        if b == None:
-            r.append(a)
+    if value == '@':
+        return ['self']
+    s = re.split('(@|:|->)', value)
+
+    if s[0] == '':
+        if s[1] == '@':
+            s.pop(0)
+            s.pop(0)
+            r.extend(('->', 'self'))
         else:
-            r.append(b)
+            s.pop(0)
+
+    for a in s:
+        if a == '->':
+            if r[0] != '->':
+                r.insert(0, a)
+            else:
+                pass
+        elif a == ':':
+            if r[0] == 'method':
+                raise SyntaxError('found too many ":"')
+            else:
+                r.insert(0, 'method')
+        else:
             r.append(a)
-    print(s)
+
     if r[0] == '->':
         r.insert(0, '(')
         r.append(')')
+
     return r
 
 def expected(wanted, found):
     raise SyntaxError('wanted: %s; found: %s' % (wanted, found))
-
-def grouper(n, iterable, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
-    # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
-    args = [iter(iterable)] * n
-    return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 if __name__ == "__main__":
     input_text = open(argv[1]).read()
