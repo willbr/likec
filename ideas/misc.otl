@@ -1,0 +1,102 @@
+tokenize IDs
+    self->next->data
+        (-> (-> self next) data)
+
+auto insert main type info
+
+auto insert commands into main function from global space
+
+escape IDs for special characters
+    eq? to eq_qm_
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+alias @ to self
+alias @next to self->next
+
+method calls
+    change (a:length) to (a length)
+    conflicts with a been a func pointer
+    how useful is it?
+
+add comments
+    (comment dsahflkdasjf  jflksd jflksd jflak ajsd)
+    ;; asfdjhs dhfkj hfjas hfajl hafhfdjak fhshj fhas
+
+
+add Heredocs
+    <<END
+this is my comment
+it can have multiple lines
+END
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+allow heredocs to stack
+
+def a (msg_a string msg_b string)
+    puts msg_a
+    puts msg_b
+
+a <<A <<B
+this is my first message
+it can have multiple lines
+<<A
+this is another message
+it also, can have multiple lines
+<<B
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+(Array count type)
+(Array 50 int)
+
+remove new
+    (new Int 0) to (Int 0)
+
+change append to a macro rather than a method of List
+    = a (new List)
+    a:append 5
+
+    append 5 to a
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+add macro map
+
+def double (n int) int
+
+= a (List 1 2 3)
+= b (map double a)
+
+macro map (f (fn (any) any) old-list List) List
+    = new-list (List)
+    for (n (return-type f)) in old-list
+        append (f n) to new-list
+    return new-list
+
+=>
+
+def macro_map_1234 (f (fn (int) int) old-list List) List
+    = new-list (List)
+    for (n int) in old-list
+        append (f n) to new-list
+    return new-list
+
+= a (List 1 2 3)
+= b (macro_map_1234 double a)
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+add global variables
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
+
+add SDL object
+
