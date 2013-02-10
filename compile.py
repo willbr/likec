@@ -253,9 +253,9 @@ def compile_assignment(lvalue, rvalue):
     post_lines = []
 
     if is_obj_constructor(rvalue):
-        new, obj_type, *args = rvalue
+        obj_type, *args = rvalue
         if obj_type == 'List':
-            rvalue = rvalue[:2]
+            rvalue = rvalue[:1]
             for arg in args:
                 post_lines.append(['method', lvalue, 'append', arg])
 
@@ -271,9 +271,12 @@ def compile_assignment(lvalue, rvalue):
     return lines
 
 def compile_call(name, *args):
-    compiled_args = [compile_expression(a) for a in args]
-    function_calls.add(name)
-    return '%s(%s)' % (name, ', '.join(compiled_args))
+    if is_obj(name):
+        return compile_new(name, *args)
+    else:
+        compiled_args = [compile_expression(a) for a in args]
+        function_calls.add(name)
+        return '%s(%s)' % (name, ', '.join(compiled_args))
 
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
@@ -480,7 +483,7 @@ def declare(lvalue, rvalue, var_type='local'):
         s[lvalue] = [initial_expression, expression_type(rvalue), var_type]
 
 def is_obj_constructor(rvalue):
-    return isinstance(rvalue, list) and rvalue[0] == 'new'
+    return isinstance(rvalue, list) and is_obj(rvalue[0])
 
 def is_obj(rvalue):
     return isinstance(rvalue, str) and is_uppercase(rvalue[0])
@@ -640,7 +643,6 @@ compile_functions = {
         'deref': compile_deref,
         '->': compile_indirect_component,
         'method': compile_method,
-        'new': compile_new,
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),

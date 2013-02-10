@@ -1,5 +1,5 @@
 def main (argc int argv ([] * char)) int
-    = a (new List 0 1 2 3 4)
+    = a (List 0 1 2 3 4)
     a:append 5
     for (n int) in a
         printf "%d\n" n
@@ -10,7 +10,7 @@ obj List
     data (* void)
 
     def append (new_data (* void))
-        = new_element (new List)
+        = new_element (List)
         = new_element->data new_data
         while (isnt @next NULL)
             = @ @next

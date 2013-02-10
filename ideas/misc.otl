@@ -45,9 +45,6 @@ it also, can have multiple lines
 (Array count type)
 (Array 50 int)
 
-remove new
-    (new Int 0) to (Int 0)
-
 change append to a macro rather than a method of List
     = a (new List)
     a:append 5
