@@ -37,14 +37,22 @@ def parse_lexp(token_stream):
     token_stream.advance()
 
     if line[0] == 'def':
+        function_name = line[1]
         length = len(line)
-        if length == 2:
-            line.extend(([], 'void'))
-            pass
-        elif length == 3:
-            line.append('void')
+        if function_name == 'main':
+            if length == 2:
+                line.extend((['argc', 'int', 'argv', ['[]', '*', 'char']], 'int'))
+            elif length == 3:
+                line.append('int')
+            else:
+                pass
         else:
-            pass
+            if length == 2:
+                line.extend(([], 'void'))
+            elif length == 3:
+                line.append('void')
+            else:
+                pass
 
     if token_stream.token.typ == 'BLOCK_START':
         token_stream.advance()
