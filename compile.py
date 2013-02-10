@@ -50,6 +50,11 @@ def main ():
                 ['argc', 'int', 'argv', ['[]', '*', 'char']],
                 'int',
                 *main_lines)
+    else:
+        if main_lines:
+            lines_str = ('\n'.join(str(l) for l in main_lines))
+            raise SyntaxError('expressions found outside of main function:\n%s' % lines_str)
+
 
     print_includes()
     print()
