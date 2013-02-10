@@ -3,6 +3,9 @@ def main (argc int argv ([] * char)) int
     a:append 5
     for (n int) in a
         printf "%d\n" n
+    = b (Array 10 0)
+    = (array-offset b 0) 1
+    printf "%d\n" (array-offset b 0)
     return 0
 
 obj List

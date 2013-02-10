@@ -1,3 +1,5 @@
+move escape hyphen into compilation
+
 escape IDs for special characters
     eq? to eq_qm_
 
@@ -41,9 +43,6 @@ it also, can have multiple lines
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-(Array count type)
-(Array 50 int)
 
 change append to a macro rather than a method of List
     = a (new List)

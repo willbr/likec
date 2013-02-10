@@ -234,6 +234,7 @@ def compile_def_arguments(args):
     return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
 def compile_variable(name, typ):
+    #print(name, typ)
     if isinstance(typ, list):
         l = [expand_object(typ[-1])]
         r = [name]
@@ -242,6 +243,8 @@ def compile_variable(name, typ):
                 r.insert(0, t)
             elif t == '[]':
                 r.append(t)
+            elif t == 'Array':
+                r.append('[]')
             else:
                 raise 'unknown type'
             r.insert(0, '(')
@@ -277,7 +280,10 @@ def compile_assignment(lvalue, rvalue):
 
 def compile_call(name, *args):
     if is_obj(name):
-        return compile_new(name, *args)
+        if name == 'Array':
+            return compile_array(*args)
+        else:
+            return compile_new(name, *args)
     else:
         compiled_args = [compile_expression(a) for a in args]
         function_calls.add(name)
@@ -287,9 +293,10 @@ def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
 
 def compile_for(a, b, c, *body):
+    #print('for',a,b,c)
     if b == 'in':
         vt = variable_type(c)
-        if vt == 'List':
+        if vt == ['*', 'List']:
             return compile_for_in_list(a[0], a[1], c, *body)
         c__i = genvar(c + '__i')
         c__length = genvar(c + '__length')
@@ -340,8 +347,9 @@ def compile_while(cond, *body):
             compile_block(body),
             '}']
 
-def compile_array(*args):
-    return '{' + ', '.join(args) + '}'
+def compile_array(length, default_value):
+    initial_values = [length] + [default_value for _ in range(int(length))]
+    return '{%s}' % ', '.join(initial_values)
 
 def compile_variable_declarations():
     declarations = []
@@ -351,9 +359,6 @@ def compile_variable_declarations():
         if var_type == 'local':
             declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
     return declarations
-
-def compile_array_offset(name, offset):
-    return '%s[%s]' % (name, compile_expression(offset))
 
 def compile_return(exp):
     return 'return %s' % compile_expression(exp)
@@ -371,6 +376,7 @@ def compile_indirect_component(*args):
     return '->'.join(compile_expression(a) for a in args)
 
 def compile_method(obj, method, *args):
+    #print(obj, method, args)
     if is_obj(obj):
         return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
     else:
@@ -378,7 +384,9 @@ def compile_method(obj, method, *args):
             new_args = ([expression_type(a)[0], a] for a in args)
         else:
             new_args = args
-        return '%s__%s(%s)' % (variable_type(obj), method,
+
+        obj_type = variable_type(obj)[1]
+        return '%s__%s(%s)' % (obj_type, method,
                 compile_arguments(obj, *new_args))
 
 def compile_arguments(*args):
@@ -390,6 +398,12 @@ def compile_new(obj, *args):
 def compile_deref(*args):
     return '(*%s)' % compile_arguments(*args)
 
+def compile_array_offset(var_name, offset):
+    vt = variable_type(var_name)
+    if vt[0] == 'Array':
+        offset = ['+', offset, '1']
+    return '%s[%s]' % (var_name,compile_expression(offset))
+
 def expand_variable(v):
     if isinstance(v, list):
         head, *tail = v
@@ -397,7 +411,10 @@ def expand_variable(v):
             return '(*%s)' % expand_variable(*tail)
         elif head == '->':
             return '(%s)' % '->'.join(expand_variable(t) for t in tail)
+        elif head == 'array-offset':
+            return compile_array_offset(tail[0], tail[1])
         else:
+            print(v)
             raise ValueError
     else:
         return v
@@ -435,21 +452,11 @@ def default_value(type_list):
         return '{}'
     elif t == 'size_t':
         return '0'
+    elif t == 'List':
+        return 'NULL'
     else:
-        print (t)
+        print (t, type_list)
         raise TypeError
-
-#def indent(elem, level=0):
-    #if isinstance(elem, str):
-        #print (('    ' * level) + elem)
-    #elif elem == None:
-        #pass
-    #else:
-        #head, body, tail = elem
-        #indent(head, level)
-        #for s in body:
-            #indent(s, level + 1)
-        #indent(tail, level)
 
 def indent(elem, level=0):
     if isinstance(elem, str):
@@ -476,7 +483,7 @@ def root_variable(name):
 def variable_type(name):
     s = scope_stack[-1]
     _, typ, _ = s[name]
-    return typ[-1]
+    return typ
 
 def declare(lvalue, rvalue, var_type='local'):
     #print(lvalue, rvalue)
@@ -494,6 +501,7 @@ def is_obj(rvalue):
     return isinstance(rvalue, str) and is_uppercase(rvalue[0])
 
 def expression_type(exp):
+    #print(exp)
     if isinstance(exp, str):
         if exp in ['true', 'false']:
             return ['Bool']
@@ -512,15 +520,24 @@ def expression_type(exp):
     else:
         #print(exp)
         head, *tail = exp
-        if head == 'array':
+        if head == 'CArray':
             return ['[]'] + expression_type(tail[0])
+        elif head == 'Array':
+            return ['Array'] + expression_type(tail[1])
         elif head == 'cast':
             return tail[0]
         elif is_obj(head):
             return ['*', head]
+        elif is_infix_operator(head):
+            return expression_type(tail[0])
+        elif head == 'sizeof':
+            return ['size_t']
         else:
-            #print(exp)
+            print(exp)
             raise TypeError
+
+def is_infix_operator(op):
+    return op in infix_operators
 
 def print_includes():
     includes = set()
@@ -638,7 +655,6 @@ compile_functions = {
         '='  : compile_assignment,
         'for': compile_for,
         'while': compile_while,
-        'array': compile_array,
         'return': compile_return,
         'array-offset': compile_array_offset,
         'cast': compile_cast,
@@ -651,7 +667,12 @@ compile_functions = {
         'isnt': functools.partial(compile_infix, '!='),
         }
 
-for o in '+-*/':
+infix_operators = '''
++ - * /
+== !=
+'''.split()
+
+for o in infix_operators:
     compile_functions[o] = functools.partial(compile_infix, o)
 
 if __name__ == '__main__':
