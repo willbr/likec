@@ -24,20 +24,41 @@ def scope(fn):
 
 
 def main ():
+    global main_lines
     input_text = open(argv[1]).read()
     ts = Tokenizer(input_text)
-    statements = parse_tokens(ts)
+    ast = parse_tokens(ts)
 
     #pp (statements)
     #print('\n')
-    compiled_statements = [compile_statement(s) for s in statements]
+
+    compiled_functions = []
+
+    for s in ast:
+        if s[0] in ['def', 'obj', 'typedef']:
+            cs = compile_statement(s)
+            if cs:
+                compiled_functions.append(cs)
+        else:
+            main_lines.append(s)
+
+    if not main_defined:
+        if main_lines[-1][0] != 'return':
+            main_lines.append(['return', '0'])
+
+        compile_def ('main',
+                ['argc', 'int', 'argv', ['[]', '*', 'char']],
+                'int',
+                *main_lines)
 
     print_includes()
+    print()
 
     for t in typedefs:
         indent(t)
 
-    print()
+    if typedefs:
+        print()
 
     for s in structures:
         indent(s)
@@ -48,14 +69,17 @@ def main ():
 
     print()
 
-
     for md in compiled_methods:
         indent(md)
         print()
 
-    for s in compiled_statements:
+    indent(main_compiled)
+    print()
+
+    for s in compiled_functions:
         #pp(s)
         indent(s)
+        print()
 
 
 def compile_statement(statements):
@@ -78,6 +102,7 @@ def compile_expression(statements):
 @scope
 def compile_def (function_name, args, return_type, *body):
     global function_headers
+    global main_defined, main_compiled
 
     call_sig = '({}({}))'.format(
         function_name,
@@ -91,10 +116,19 @@ def compile_def (function_name, args, return_type, *body):
     if function_name != 'main':
         function_declarations.append(function_header)
         functions_declared.add(function_name)
-    return [
-            function_header + ' {',
-            new_body,
-            '}']
+        return [
+                function_header + ' {',
+                new_body,
+                '}']
+    else:
+        if main_defined:
+            raise NameError('main is defined twice')
+        else:
+            main_defined = True
+            main_compiled = [
+                    function_header + ' {',
+                    new_body,
+                    '}']
 
 def compile_obj(name, *body):
     compiled_fields = []
@@ -488,7 +522,6 @@ def print_includes():
 
     for i in includes:
         print('#include <%s>' % i)
-    print()
 
 def lookup_library(function_name):
     for library, functions in libraries.items():
@@ -507,10 +540,15 @@ scope_stack = [collections.OrderedDict()]
 
 typedefs = []
 structures = []
+
 function_declarations = []
 functions_declared = set()
 function_calls = set()
 compiled_methods = []
+
+main_defined = False
+main_lines = []
+main_compiled = None
 
 libraries = {
         'stdio.h': [

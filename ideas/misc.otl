@@ -1,7 +1,3 @@
-auto insert main type info
-
-auto insert commands into main function from global space
-
 escape IDs for special characters
     eq? to eq_qm_
 
