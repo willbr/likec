@@ -113,19 +113,17 @@ def compile_def (function_name, args, return_type, *body):
         function_name,
         compile_def_arguments(args))
 
+    if function_name == 'main':
+        if body[-1][0] != 'return':
+            body = list(body)
+            body.append(['return', '0'])
+
     compiled_body = compile_block(body)
     new_body = compile_variable_declarations() + compiled_body
 
     function_header = compile_variable(call_sig, return_type)
 
-    if function_name != 'main':
-        function_declarations.append(function_header)
-        functions_declared.add(function_name)
-        return [
-                function_header + ' {',
-                new_body,
-                '}']
-    else:
+    if function_name == 'main':
         if main_defined:
             raise NameError('main is defined twice')
         else:
@@ -134,6 +132,13 @@ def compile_def (function_name, args, return_type, *body):
                     function_header + ' {',
                     new_body,
                     '}']
+    else:
+        function_declarations.append(function_header)
+        functions_declared.add(function_name)
+        return [
+                function_header + ' {',
+                new_body,
+                '}']
 
 def compile_obj(name, *body):
     compiled_fields = []
@@ -370,7 +375,7 @@ def compile_method(obj, method, *args):
         return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
     else:
         if method == 'append':
-            new_args = (['new', expression_type(a)[0], a] for a in args)
+            new_args = ([expression_type(a)[0], a] for a in args)
         else:
             new_args = args
         return '%s__%s(%s)' % (variable_type(obj), method,
@@ -511,9 +516,7 @@ def expression_type(exp):
             return ['[]'] + expression_type(tail[0])
         elif head == 'cast':
             return tail[0]
-        elif head == 'new':
-            return ['*', tail[0]]
-        elif is_uppercase(head[0]):
+        elif is_obj(head):
             return ['*', head]
         else:
             #print(exp)
