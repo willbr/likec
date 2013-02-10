@@ -1,15 +1,10 @@
-move escape hyphen into compilation
-
-escape IDs for special characters
-    eq? to eq_qm_
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
 method calls
     change (a:length) to (a length)
     conflicts with a been a func pointer
     how useful is it?
+
+    could also be used to access fields
+    = (a length)
 
 add comments
     (comment dsahflkdasjf  jflksd jflksd jflak ajsd)

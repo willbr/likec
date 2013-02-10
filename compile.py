@@ -27,7 +27,7 @@ def main ():
     global main_lines
     input_text = open(argv[1]).read()
     ts = Tokenizer(input_text)
-    ast = parse_tokens(ts)
+    ast = escape(parse_tokens(ts))
 
     #pp (statements)
     #print('\n')
@@ -257,6 +257,7 @@ def compile_variable(name, typ):
             return '%s %s' % (typ, name)
 
 def compile_assignment(lvalue, rvalue):
+    #print(lvalue, rvalue)
     lines = []
     post_lines = []
 
@@ -411,11 +412,10 @@ def expand_variable(v):
             return '(*%s)' % expand_variable(*tail)
         elif head == '->':
             return '(%s)' % '->'.join(expand_variable(t) for t in tail)
-        elif head == 'array-offset':
+        elif head == 'array_offset':
             return compile_array_offset(tail[0], tail[1])
         else:
-            print(v)
-            raise ValueError
+            raise ValueError(v)
     else:
         return v
 
@@ -564,6 +564,29 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
+
+def escape(s):
+    if isinstance(s, list):
+        return [escape(a) for a in s]
+    else:
+        if s in ['->']:
+            return s
+        elif s[0] in '\'"':
+            return s
+        replacements = {
+                '-': '_',
+                '?': '_qm_',
+                }
+        regexp = '(%s)' % '|'.join(map(re.escape, replacements.keys()))
+        new_s = []
+        for a in re.split(regexp, s):
+            try:
+                new_s.append(replacements[a])
+            except KeyError:
+                new_s.append(a)
+        return ''.join(new_s)
+
+
 scope_stack = [collections.OrderedDict()]
 
 typedefs = []
@@ -656,7 +679,7 @@ compile_functions = {
         'for': compile_for,
         'while': compile_while,
         'return': compile_return,
-        'array-offset': compile_array_offset,
+        'array_offset': compile_array_offset,
         'cast': compile_cast,
         'typedef': compile_typedef,
         'deref': compile_deref,
