@@ -144,6 +144,7 @@ def split_id(value):
         else:
             r.append(b)
             r.append(a)
+    print(s)
     if r[0] == '->':
         r.insert(0, '(')
         r.append(')')
