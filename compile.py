@@ -268,11 +268,14 @@ def compile_assignment(lvalue, rvalue):
             for arg in args:
                 post_lines.append(['method', lvalue, 'append', arg])
 
-    if in_scope(lvalue):
-        rexp = compile_expression(rvalue)
-        lines.insert(0, '%s = %s' % (expand_variable(lvalue), rexp))
+    root = root_variable(lvalue)
+
+    if in_scope(root):
+        lines.insert(0, '%s = %s' % (
+            expand_variable(lvalue),
+            compile_expression(rvalue)))
     else:
-        declare(root_variable(lvalue), rvalue)
+        declare(root, rvalue)
 
     for line in post_lines:
         lines.append(compile_expression(line))
@@ -286,9 +289,13 @@ def compile_call(name, *args):
         else:
             return compile_new(name, *args)
     else:
-        compiled_args = [compile_expression(a) for a in args]
-        function_calls.add(name)
-        return '%s(%s)' % (name, ', '.join(compiled_args))
+        try:
+            vt = variable_type(name)
+            return compile_method(name, *args)
+        except KeyError:
+            compiled_args = [compile_expression(a) for a in args]
+            function_calls.add(name)
+            return '%s(%s)' % (name, ', '.join(compiled_args))
 
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
@@ -477,7 +484,11 @@ def in_scope(name):
 
 def root_variable(name):
     while isinstance(name, list):
-        name = name[1]
+        if name[0] in ['*', '->', 'deref', 'array_offset']:
+            name = name[1]
+        else:
+            name = name[0]
+
     return name
 
 def variable_type(name):

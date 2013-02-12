@@ -17,18 +17,22 @@ exit /b
     python test_tokenizer.py
     exit /b %ERRORLEVEL%
 
+:g
 :gcc
     call :default > out.c && gcc -Wall -g out.c
     exit /b %ERRORLEVEL%
 
+:r
 :run
     call :gcc && a.exe
     exit /b %ERRORLEVEL%
 
+:p
 :parse
     python pf_parser.py almost.c
     exit /b %ERRORLEVEL%
 
+:t
 :tokens
     python Tokenizer.py almost.c
     exit /b %ERRORLEVEL%

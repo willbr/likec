@@ -1,15 +1,16 @@
 def main (argc int argv ([] * char)) int
     = a (List 0 1 2 3 4)
-    ; append 5 to a
+    a append 5
     for (n int) in a
         printf "%d\n" n
     = b (Array 10 0 ;hahahahahaha)
-    )
+    ) ; comment
     = (array-offset b 0) 1234
     printf <<ENDS (array-offset b 0)
 b[0] %d
 
 ENDS
+    ; comment
     return 0
 
 obj List
