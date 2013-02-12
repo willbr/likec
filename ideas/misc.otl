@@ -3,33 +3,18 @@ method calls
     conflicts with a been a func pointer
     how useful is it?
 
+    a append 5
+
+    a:append 5
+
     could also be used to access fields
     = (a length)
+    = a.length
+    ??
 
-add Heredocs
-    <<END
-this is my comment
-it can have multiple lines
-END
+    (a length) returns lvalue...
 
-in tokenize; check for here docs on NEWLINE match
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-allow heredocs to stack
-
-def a (msg_a string msg_b string)
-    puts msg_a
-    puts msg_b
-
-a <<A <<B
-this is my first message
-it can have multiple lines
-<<A
-this is another message
-it also, can have multiple lines
-<<B
+    or maybe just for accessing methods
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;

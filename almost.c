@@ -6,7 +6,10 @@ def main (argc int argv ([] * char)) int
     = b (Array 10 0 ;hahahahahaha)
     )
     = (array-offset b 0) 1234
-    printf "%d\n" (array-offset b 0)
+    printf <<ENDS (array-offset b 0)
+b[0] %d
+
+ENDS
     return 0
 
 obj List

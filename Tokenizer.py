@@ -13,11 +13,13 @@ class TokenizerStageOne:
                 ('CLOSE_PAREN', r'\)'),
                 ('NUMBER',  r'\d+(\.\d*)?'),
                 ('STRING',  r'"(\\.|[^"])*"'),
+                ('CHAR',  r'\'(\\.|.)\''),
                 ('BLANK_LINE', r'(?<=\n)\s*\n'),
                 ('NEWLINE', r'\n'),
                 ('INDENT', r'(?<=\n) +'),
                 ('SKIP',    r'[ \t]'),
                 ('COMMENT',    r';.*'),
+                ('HEREDOC',    r'<<\S+'),
                 ('ID',    r'[^\s\(\)"]+'),
             ]
             tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
@@ -25,20 +27,52 @@ class TokenizerStageOne:
             line = 1
             pos = line_start = 0
             mo = get_token(s)
+            #heredocs = []
+
+            hstart = None
+            hline = 0
+
             while mo is not None:
                 typ = mo.lastgroup
 
                 if typ != 'SKIP':
                     val = mo.group(typ)
-                    if typ == 'OPERATOR' and val in side_effect_operator:
-                        typ = 'SIDE_EFFECT_OPERATOR'
-                    if typ not in ['BLANK_LINE']:
+                    if typ == 'HEREDOC':
+                        if hstart == None:
+                            get_eol = re.compile(r'\n').search
+                            hstart = get_eol(s, pos).end()
+                        hval = val[2:]
+
+                        #rx = r'\n%s\s*\n' % hval
+                        rx = r'^%s\s*\n' % hval
+                        get_heredoc = re.compile(rx, re.MULTILINE).search
+
+                        hmo = get_heredoc(s, hstart)
+
+                        heredoc_s = s[hstart:hmo.start() - 1] # skip last newline
+                        hline += heredoc_s.count('\n')
+                        hstart = hmo.end()
+                        yield Token('STRING',
+                                '"%s"' % heredoc_s.replace('\n', r'\n'),
+                                line,
+                                mo.start()-line_start)
+                    elif typ not in ['BLANK_LINE']:
                         if typ == 'ID':
                             yield Token(typ, val, line, mo.start()-line_start)
                         else:
                             yield Token(typ, val, line, mo.start()-line_start)
 
-                pos = mo.end()
+                if typ == 'NEWLINE' and hstart:
+                    if pos < hstart:
+                        pos = hstart
+                    else:
+                        pos = mo.end()
+                    line += hline
+                    hline = 0
+                    hstart = None
+                else:
+                    pos = mo.end()
+
                 mo = get_token(s, pos)
 
                 if typ in ['NEWLINE', 'BLANK_LINE']:
@@ -70,6 +104,7 @@ class Tokenizer:
 
             while ts.has_more_tokens:
                 t = ts.token
+
                 if t.typ == 'NEWLINE' and sexp_depth == 0:
                     yield t
                     a = t
@@ -178,6 +213,17 @@ def expected(wanted, found):
 
 if __name__ == "__main__":
     input_text = open(argv[1]).read()
+
+
+    #s = input_text
+    ##mo = re.search(r'^MSGA', s, re.MULTILINE, pos=63)
+    #get_token = re.compile(r'^MSGA\n', re.MULTILINE).search
+    #mo = get_token(s, 0)
+    #print(mo.pos)
+    #print(mo.start())
+    #print(mo.end())
+    #print('"%s"' % mo.group(0))
+    #exit()
 
     #ts = TokenizerStageOne(input_text)
     #for t in ts.tokens:
