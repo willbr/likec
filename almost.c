@@ -1,10 +1,11 @@
 def main (argc int argv ([] * char)) int
     = a (List 0 1 2 3 4)
-    a:append 5
+    ; append 5 to a
     for (n int) in a
         printf "%d\n" n
-    = b (Array 10 0)
-    = (array-offset b 0) 1
+    = b (Array 10 0 ;hahahahahaha)
+    )
+    = (array-offset b 0) 1234
     printf "%d\n" (array-offset b 0)
     return 0
 

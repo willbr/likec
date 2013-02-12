@@ -10,7 +10,6 @@ def main():
     ts = Tokenizer(input_text)
     statements = parse_tokens(ts)
     #print('\n')
-    #pp (statements)
     for s in statements:
         print(indent(s))
         print()
@@ -26,17 +25,21 @@ def parse_tokens(token_stream):
 
 def parse_lexp(token_stream):
     line = []
-    while token_stream.token.typ != 'NEWLINE':
+    while token_stream.token.typ != 'NEWLINE' and token_stream.has_more_tokens:
         if token_stream.token.typ == 'OPEN_PAREN':
             line.append(parse_sexp(token_stream))
         elif token_stream.token.typ == 'NEWLINE':
             pass
+        elif token_stream.token.typ == 'COMMENT':
+            token_stream.advance()
         else:
             line.append(token_stream.token.value)
             token_stream.advance()
     token_stream.advance()
 
-    if line[0] == 'def':
+    if not line:
+        pass
+    elif line[0] == 'def':
         function_name = line[1]
         length = len(line)
         if function_name == 'main':
@@ -57,27 +60,37 @@ def parse_lexp(token_stream):
     if token_stream.token.typ == 'BLOCK_START':
         token_stream.advance()
         while token_stream.token.typ != 'BLOCK_END':
-            line.append(parse_lexp(token_stream))
+            lexp = parse_lexp(token_stream)
+            if lexp:
+                line.append(lexp)
         token_stream.advance()
 
-    return line
+    if line:
+        return line
+    else:
+        return None
 
 def parse_sexp(token_stream):
     token_stream.skip('OPEN_PAREN')
     sexp = []
 
-    while token_stream.token.typ != 'CLOSE_PAREN':
+    while token_stream.token.typ != 'CLOSE_PAREN' and token_stream.has_more_tokens:
         if token_stream.token.typ == 'NEWLINE':
             token_stream.advance()
         elif token_stream.token.typ == 'OPEN_PAREN':
             sexp.append(parse_sexp(token_stream))
+        elif token_stream.token.typ == 'COMMENT':
+            token_stream.advance()
         else:
             sexp.append(token_stream.token.value)
             token_stream.advance()
 
     token_stream.skip('CLOSE_PAREN')
 
-    return sexp
+    if sexp:
+        return sexp
+    else:
+        return None
 
 def indent(e, level=0, start=''):
     if isinstance(e, list):

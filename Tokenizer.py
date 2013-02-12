@@ -17,6 +17,7 @@ class TokenizerStageOne:
                 ('NEWLINE', r'\n'),
                 ('INDENT', r'(?<=\n) +'),
                 ('SKIP',    r'[ \t]'),
+                ('COMMENT',    r';.*'),
                 ('ID',    r'[^\s\(\)"]+'),
             ]
             tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
@@ -31,7 +32,7 @@ class TokenizerStageOne:
                     val = mo.group(typ)
                     if typ == 'OPERATOR' and val in side_effect_operator:
                         typ = 'SIDE_EFFECT_OPERATOR'
-                    if typ != 'BLANK_LINE':
+                    if typ not in ['BLANK_LINE']:
                         if typ == 'ID':
                             yield Token(typ, val, line, mo.start()-line_start)
                         else:
@@ -65,10 +66,11 @@ class Tokenizer:
 
             call_depth = 0
             indent_depth = 0
+            sexp_depth = 0
 
             while ts.has_more_tokens:
                 t = ts.token
-                if t.typ == 'NEWLINE':
+                if t.typ == 'NEWLINE' and sexp_depth == 0:
                     yield t
                     a = t
                     ts.advance()
@@ -102,6 +104,14 @@ class Tokenizer:
                                 raise ValueError('Error spliting ID', t)
                             else:
                                 yield Token('ID', v, t.line, t.column)
+                    elif t.typ == 'OPEN_PAREN':
+                        sexp_depth += 1
+                        yield t
+                    elif t.typ == 'CLOSE_PAREN':
+                        sexp_depth -= 1
+                        yield t
+                    elif t.typ == 'INDENT':
+                        pass
                     else:
                         yield t
                     ts.advance()
