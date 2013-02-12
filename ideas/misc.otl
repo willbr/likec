@@ -1,3 +1,44 @@
+copy clojurescript javascript method calls
+
+= a (List)
+.append a
+:append a
+
+or even?
+
+a.append 5
+a append 5
+
+easier to type
+having a dot makes it easier to know that a is an Object and not a
+function
+
+;;;;
+
+
+use , to escape lexp calls
+
+puts
+    ,"hello world"
+
+=>
+
+(puts "hello world")
+
+and not
+(puts ("hello world")
+
+
+;;;;
+
+fix declare from moving rvalue of assignment to top with declare
+new variables should initialise to defualt type values
+
+;;;;
+
+
+below is really templates
+
 add macro map
 
 def double (n int) int
