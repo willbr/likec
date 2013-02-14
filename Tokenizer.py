@@ -11,6 +11,8 @@ class TokenizerStageOne:
             token_specification = [
                 ('OPEN_PAREN', r'\('),
                 ('CLOSE_PAREN', r'\)'),
+                ('OPEN_SQUARE', r'\['),
+                ('CLOSE_SQUARE', r'\]'),
                 ('NUMBER',  r'\d+(\.\d*)?'),
                 ('STRING',  r'"(\\.|[^"])*"'),
                 ('CHAR',  r'\'(\\.|.)\''),
@@ -20,7 +22,7 @@ class TokenizerStageOne:
                 ('SKIP',    r'[ \t]'),
                 ('COMMENT',    r';.*'),
                 ('HEREDOC',    r'<<\S+'),
-                ('ID',    r'[^\s\(\)"]+'),
+                ('ID',    r'[^\s\(\)\[\]"]+'),
             ]
             tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
             get_token = re.compile(tok_regex).match
@@ -147,6 +149,11 @@ class Tokenizer:
                         yield t
                     elif t.typ == 'INDENT':
                         pass
+                    elif t.typ == 'OPEN_SQUARE':
+                        yield Token('OPEN_PAREN', '(', t.line, t.column)
+                        yield Token('ID', 'deref', t.line, t.column)
+                    elif t.typ == 'CLOSE_SQUARE':
+                        yield Token('CLOSE_PAREN', ')', t.line, t.column)
                     else:
                         yield t
                     ts.advance()

@@ -79,28 +79,6 @@ ENDC
 
 ;;;;
 
-array offset and pointer derefrence
-
-[a i]
-or?
-{a i}
-
-[a i]
-=>
-a[i]
-
-[a]
-=>
-(deref a)
-=>
-*a
-
-[a (+ 5 10)]
-=>
-a[5 + 10]
-
-;;;;
-
 
 C# style string literals
 

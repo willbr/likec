@@ -47,7 +47,7 @@ def main ():
             main_lines.append(['return', '0'])
 
         compile_def ('main',
-                ['argc', 'int', 'argv', ['[]', '*', 'char']],
+                ['argc', 'int', 'argv', ['CArray', '*', 'char']],
                 'int',
                 *main_lines)
     else:
@@ -245,8 +245,8 @@ def compile_variable(name, var_type):
             t = type_stack.pop()
             if t == '*':
                 r.insert(0, t)
-            elif t == '[]':
-                r.append(t)
+            elif t == 'CArray':
+                r.append('[]')
             elif t == 'Array':
                 # + 1 because element 0 is length
                 size = int(type_stack.pop()) + 1
@@ -418,23 +418,34 @@ def compile_new(obj, *args):
     return compile_method(obj, 'new', 'NULL', *args)
 
 def compile_deref(*args):
-    return '(*%s)' % compile_arguments(*args)
+    if len(args) == 1:
+        return '(*%s)' % compile_arguments(*args)
+    else:
+        return compile_array_offset(*args)
 
 def compile_array_offset(var_name, offset):
     vt = variable_type(var_name)
     if vt[0] == 'Array':
-        offset = ['+', offset, '1']
+        # + 1 because element 0 is the length
+        offset = ['+', '1', offset]
+    elif vt[0] == 'CArray':
+        pass
+    elif vt[0] == '*':
+        pass
+    else:
+        raise TypeError(var_name, vt)
     return '%s[%s]' % (var_name,compile_expression(offset))
 
 def expand_variable(v):
     if isinstance(v, list):
         head, *tail = v
         if head == 'deref':
-            return '(*%s)' % expand_variable(*tail)
+            if len(tail) == 1:
+                return '(*%s)' % expand_variable(*tail)
+            else:
+                return compile_array_offset(*tail)
         elif head == '->':
             return '(%s)' % '->'.join(expand_variable(t) for t in tail)
-        elif head == 'array_offset':
-            return compile_array_offset(tail[0], tail[1])
         else:
             raise ValueError(v)
     else:
