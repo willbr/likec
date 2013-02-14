@@ -96,29 +96,6 @@ r"c:\stuff\more\"
 
 ;;;;
 
-ruby's range statements
-
-for (i int) in 1..15
-for i in 1..5
-each i in 1..15
-
-1..5
-=>
-1
-2
-3
-4
-5
-
-1...5
-=>
-1
-2
-3
-4
-
-;;;;
-
 prn "{(+ 5 5)}"
 
 = n 5

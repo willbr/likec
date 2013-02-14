@@ -310,30 +310,47 @@ def compile_call(name, *args):
 def compile_infix(operator, *operands):
     return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
 
+def compile_range(start, end=None, step='1'):
+    if end == None:
+        end = start
+        start = '0'
+    return [start, end, step]
+
 def compile_for(a, b, c, *body):
     #print('for',a,b,c)
     if b == 'in':
-        vt = variable_type(c)
-        if vt == ['*', 'List']:
-            return compile_for_in_list(a[0], a[1], c, *body)
-        c__i = genvar(c + '__i')
-        c__length = genvar(c + '__length')
+        if c[0] == 'range':
+            start, end, step = compile_range(*c[1:])
+            declare(a, 'int')
+            init = '%s = %s' % (a, start)
+            cond = '%s < %s' % (a, end)
+            step = '%s += %s' % (a, step)
+            for_header = '; '.join((init, cond, step))
+            return [
+                    'for (%s) {' % for_header,
+                    compile_block(body),
+                    '}']
+        else:
+            vt = variable_type(c)
+            if vt == ['*', 'List']:
+                return compile_for_in_list(a[0], a[1], c, *body)
+            c__i = genvar(c + '__i')
+            c__limit = genvar(c + '__limit')
 
-        compile_assignment(c__i, '0')
-        compile_assignment(c__length, ['/',
-            ['sizeof', c],
-            ['sizeof', ['array-offset', c, '0']]])
+            compile_assignment(c__i, '0')
+            compile_assignment(c__limit, ['/',
+                ['sizeof', c],
+                ['sizeof', ['array-offset', c, '0']]])
 
-        c_element_type = scope_stack[-1][c][1][1:]
-        declare(a, default_value(c_element_type))
+            c_element_type = scope_stack[-1][c][1][1:]
+            declare(a, default_value(c_element_type))
 
-        init = compile_expression(['=', c__i, '0'])
-        middle = 'a'
-        middle = '%s < %s' % (c__i, c__length)
-        step = '%s += 1' % c__i
+            init = compile_expression(['=', c__i, '0'])
+            cond = '%s < %s' % (c__i, c__length)
+            step = '%s += 1' % c__i
 
         return [
-                'for (%s) {' % '; '.join((init, middle, step)),
+                'for (%s) {' % '; '.join((init, cond, step)),
                 ['%s = %s[%s];' % (a, c, c__i)] + compile_block(body),
                 '}'
                 ]
@@ -608,7 +625,7 @@ def escape(s):
     else:
         if s in ['->']:
             return s
-        elif s[0] in '\'"':
+        elif s[0] in '\'"-':
             return s
         replacements = {
                 '-': '_',

@@ -13,7 +13,8 @@ class TokenizerStageOne:
                 ('CLOSE_PAREN', r'\)'),
                 ('OPEN_SQUARE', r'\['),
                 ('CLOSE_SQUARE', r'\]'),
-                ('NUMBER',  r'\d+(\.\d*)?'),
+                ('RANGE',  r'\d+\.\.\.?\d+'),
+                ('NUMBER',  r'(\+|\-)?\d+(\.\d*)?'),
                 ('STRING',  r'"(\\.|[^"])*"'),
                 ('CHAR',  r'\'(\\.|.)\''),
                 ('BLANK_LINE', r'(?<=\n)\s*\n'),
@@ -29,7 +30,6 @@ class TokenizerStageOne:
             line = 1
             pos = line_start = 0
             mo = get_token(s)
-            #heredocs = []
 
             hstart = None
             hline = 0
@@ -45,7 +45,6 @@ class TokenizerStageOne:
                             hstart = get_eol(s, pos).end()
                         hval = val[2:]
 
-                        #rx = r'\n%s\s*\n' % hval
                         rx = r'^%s\s*\n' % hval
                         get_heredoc = re.compile(rx, re.MULTILINE).search
 
@@ -154,6 +153,15 @@ class Tokenizer:
                         yield Token('ID', 'deref', t.line, t.column)
                     elif t.typ == 'CLOSE_SQUARE':
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)
+                    elif t.typ == 'RANGE':
+                        start, middle, end = re.split('(\.+)', t.value)
+                        if len(middle) == 2:
+                            end = str(int(end) + 1)
+                        yield Token('OPEN_PAREN', '(', t.line, t.column)
+                        yield Token('ID', 'range', t.line, t.column)
+                        yield Token('ID', start, t.line, t.column)
+                        yield Token('ID', end, t.line, t.column)
+                        yield Token('CLOSE_PAREN', ')', t.line, t.column)
                     else:
                         yield t
                     ts.advance()
@@ -220,17 +228,6 @@ def expected(wanted, found):
 
 if __name__ == "__main__":
     input_text = open(argv[1]).read()
-
-
-    #s = input_text
-    ##mo = re.search(r'^MSGA', s, re.MULTILINE, pos=63)
-    #get_token = re.compile(r'^MSGA\n', re.MULTILINE).search
-    #mo = get_token(s, 0)
-    #print(mo.pos)
-    #print(mo.start())
-    #print(mo.end())
-    #print('"%s"' % mo.group(0))
-    #exit()
 
     #ts = TokenizerStageOne(input_text)
     #for t in ts.tokens:

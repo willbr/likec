@@ -11,6 +11,8 @@ b[0] %d
 
 ENDS
     ; comment
+    for i in 0..5
+        printf "range: %d\n" i
     return 0
 
 obj List
