@@ -1,3 +1,270 @@
+= a (List)
+
+(a append 5)
+append 5 to a
+
+
+= (a b)
+= a.b 5
+= (field a b) 5
+
+;;;;
+
+inc a
+dec a
+
+++a
+--a
+
+post-inc a
+a++
+
+;;;;
+
+ternary
+
+= z (? (> a b) a b)
+
+;;;;
+
+(in char string)
+
+= c ' '
+
+(in c " \n\t")
+=>
+true
+
+;;;;
+
+cond to replace if else if else if else if
+
+cond
+    (== x 1)
+        prn "hello"
+    (or (== c ' '_ ) (== c '\n') (== c '\t'))
+        prn "space"
+    else
+        prn "else"
+
+
+;;;;
+
+= x 1
+
+switch (+ 1 x)
+    0
+        prn "found"
+        prn "zero"
+    1
+        prn "found"
+        prn "one"
+    default
+        prn "found"
+        prn "other"
+
+;;;;
+
+drop into c
+
+c <<ENDC
+void test(int c) {
+    while (c > 0) {
+        puts ("wow");
+        c -= 1;
+    }
+}
+
+ENDC
+
+;;;;
+
+array offset and pointer derefrence
+
+[a i]
+or?
+{a i}
+
+[a i]
+=>
+a[i]
+
+[a]
+=>
+(deref a)
+=>
+*a
+
+[a (+ 5 10)]
+=>
+a[5 + 10]
+
+;;;;
+
+
+C# style string literals
+
+@"c:\stuff\more\"
+=>
+"c:\\stuff\\more\\"
+
+or
+
+python style
+
+r"c:\stuff\more\"
+=>
+"c:\\stuff\\more\\"
+
+;;;;
+
+ruby's range statements
+
+for (i int) in 1..15
+for i in 1..5
+each i in 1..15
+
+;;;;
+
+prn "{(+ 5 5)}"
+
+= n 5
+
+prn n
+=> printf "%d\n" n
+
+pr n
+=> printf "%d" n
+
+;;;;
+
+python style format strings
+mixed with c format strings
+
+= n 10
+
+prn "n = {n}"
+=>
+printf "n = %d\n" n
+
+
+prn "n = {n:+04}"
+=>
+printf "n = %+04d\n" n
+
+prn "n = {n:+04d}"
+=>
+printf "n = %+04d\n" n
+
+pr "n = {n}"
+=>
+printf "n = %d" n
+
+;;;;
+
+(range)
+
+for i in (range 10)
+=> '(0 1 2 3 4 5 6 7 8 9)
+
+for i in (range 1 10)
+=> '(1 2 3 4 5 6 7 8 9)
+
+for i in (range 0 10 2)
+=> '(2 4 6 8)
+
+;;;;
+
+add list functions
+
+map reduce filter
+
+all some none
+trues falses
+
+remove odd '(1 2 3 4 5 6 7)
+=> '(2 4 6)
+
+keep odd '(1 2 3 4 5 6 7)
+=> '(1 3 5 7)
+
+;;;;
+
+compose functions
+
+odd:car '(1 2 3)
+
+(odd (car '(1 2 3)))
+
+;;;;
+
+negate
+
+odd 1
+=> true
+
+not (odd 1)
+=> false
+
+~odd 1
+=> false
+
+;;;;
+
+Stack
+
+push
+pop
+
+= a (Stack)
+.push a 5
+a.push 4
+a push 3
+
+;;;;
+
+replace `for in list` with each
+
+each (n int) (List 1 2 3 4)
+    prn n
+
+;;;;
+
+while (isnt (= c (getchar)) EOF)
+    if (== c '\n')
+        inc nl
+prn nl
+
+=>
+
+(while (isnt (= c (getchar)) EOF)
+    (if (== c '\n')
+        (inc nl)))
+(prn nl)
+
+;;;;
+
+prn "hello"
+=> puts("hello")
+=> printf("hello\n")
+
+pr "hello"
+=> printf("hello")
+
+;;;;
+
+repeat 5
+    prn "hello"
+
+=>
+hello
+hello
+hello
+hello
+hello
+
+;;;;
+
 copy clojurescript javascript method calls
 
 = a (List)
@@ -109,4 +376,20 @@ add strings as an object
 change main definition
     def main (args List) int
         return 0
+
+obj String
+    length size_t
+    data (* char)
+
+    def new (s (* char))
+        = @length (+ (strlen s) 1)
+        = @data (malloc @length)
+        strncpy @data s @length
+
+    def die
+        free @data
+
+;;;;
+
+auto insert die method into objects
 
