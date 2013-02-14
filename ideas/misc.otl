@@ -1,11 +1,3 @@
-change Array constructor to take a type
-
-= a (Array 10 int)
-=>
-int a[11] = {};
-
-;;;;
-
 = a (List)
 
 (a append 5)

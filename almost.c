@@ -3,7 +3,7 @@ def main (argc int argv ([] * char)) int
     a append 5
     for (n int) in a
         printf "%d\n" n
-    = b (Array 10 0 ;hahahahahaha)
+    = b (Array 10 int ;hahahahahaha)
     ) ; comment
     = (array-offset b 0) 1234
     printf <<ENDS (array-offset b 0)

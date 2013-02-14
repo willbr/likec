@@ -203,7 +203,6 @@ def compile_obj_def(
 
     new_args = ['self', ['*', object_name]] + args
 
-
     compiled_methods.append(compile_def(
         function_name,
         new_args,
@@ -233,28 +232,35 @@ def compile_def_arguments(args):
         declare(n, t, 'argument')
     return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
-def compile_variable(name, typ):
-    #print(name, typ)
-    if isinstance(typ, list):
-        l = [expand_object(typ[-1])]
+def compile_variable(name, var_type):
+    #print(name, var_type)
+    if isinstance(var_type, list):
+        if var_type[0] == 'cast':
+            type_stack = var_type[1][::-1]
+        else:
+            type_stack = var_type[::-1]
+        l = [expand_object(type_stack.pop(0))]
         r = [name]
-        for t in typ[:-1]:
+        while type_stack:
+            t = type_stack.pop()
             if t == '*':
                 r.insert(0, t)
             elif t == '[]':
                 r.append(t)
             elif t == 'Array':
-                r.append('[]')
+                # + 1 because element 0 is length
+                size = int(type_stack.pop()) + 1
+                r.append('[%s]' % size)
             else:
-                raise 'unknown type'
+                raise TypeError(name, t)
             r.insert(0, '(')
             r.append(')')
         return '%s %s' % (''.join(l), ''.join(r))
     else:
         if name == '':
-            return typ
+            return var_type
         else:
-            return '%s %s' % (typ, name)
+            return '%s %s' % (var_type, name)
 
 def compile_assignment(lvalue, rvalue):
     #print(lvalue, rvalue)
@@ -267,18 +273,22 @@ def compile_assignment(lvalue, rvalue):
             rvalue = rvalue[:1]
             for arg in args:
                 post_lines.append(['method', lvalue, 'append', arg])
+        elif obj_type == 'Array':
+            declare(lvalue, rvalue)
+            rvalue = None
 
-    root = root_variable(lvalue)
+    if rvalue:
+        root = root_variable(lvalue)
 
-    if in_scope(root):
+        if not in_scope(root):
+            declare(root, expression_type(rvalue))
+
         lines.insert(0, '%s = %s' % (
             expand_variable(lvalue),
             compile_expression(rvalue)))
-    else:
-        declare(root, rvalue)
 
-    for line in post_lines:
-        lines.append(compile_expression(line))
+        for line in post_lines:
+            lines.append(compile_expression(line))
 
     return lines
 
@@ -309,8 +319,8 @@ def compile_for(a, b, c, *body):
         c__i = genvar(c + '__i')
         c__length = genvar(c + '__length')
 
-        declare(c__i, '0')
-        declare(c__length, ['/',
+        compile_assignment(c__i, '0')
+        compile_assignment(c__length, ['/',
             ['sizeof', c],
             ['sizeof', ['array-offset', c, '0']]])
 
@@ -331,9 +341,11 @@ def compile_for(a, b, c, *body):
         init = compile_expression(a)[0]
         cond = compile_expression(b)
         step = compile_expression(c)[0]
+        #print(init)
+        #print(cond)
+        #print(step)
         for_header = '; '.join((init, cond, step))
         return [
-                init,
                 'for (%s) {' % for_header,
                 compile_block(body),
                 '}']
@@ -341,7 +353,7 @@ def compile_for(a, b, c, *body):
 def compile_for_in_list(bind_name, bind_type, list_name, *body):
     iterator_name = genvar(list_name, 'iterator')
     declare(iterator_name, ['cast', ['*', 'List'], 'NULL'])
-    declare(bind_name, default_value(bind_type))
+    declare(bind_name, bind_type)
     init = ['=', iterator_name, list_name]
     cond = ['isnt', ['->',iterator_name,'next'], 'NULL']
     step = ['=', iterator_name, ['->',iterator_name,'next']]
@@ -355,17 +367,19 @@ def compile_while(cond, *body):
             compile_block(body),
             '}']
 
-def compile_array(length, default_value):
-    initial_values = [length] + [default_value for _ in range(int(length))]
-    return '{%s}' % ', '.join(initial_values)
+def compile_array(length, array_type):
+    return '{%s}' % length
 
 def compile_variable_declarations():
     declarations = []
     s = scope_stack[-1]
     for lvalue, value in sorted(s.items()):
-        rvalue, typ, var_type = value
-        if var_type == 'local':
-            declarations.append('%s = %s;' % (compile_variable(lvalue, typ), rvalue))
+        var_type, var_scope = value
+        #print(lvalue, var_type, var_scope)
+        if var_scope == 'local':
+            l = compile_variable(lvalue, var_type)
+            r = default_value(var_type)
+            declarations.append('%s = %s;' % (l, r))
     return declarations
 
 def compile_return(exp):
@@ -447,7 +461,10 @@ def genvar(*args):
 
 def default_value(type_list):
     if isinstance(type_list, list):
-        t = type_list[0]
+        if type_list[0] == 'cast':
+            t = type_list[1][0]
+        else:
+            t = type_list[0]
     else:
         t = type_list
 
@@ -459,11 +476,14 @@ def default_value(type_list):
         return '{}'
     elif t == 'size_t':
         return '0'
+    elif t == 'Int':
+        return '0'
     elif t == 'List':
         return 'NULL'
+    elif t == 'Array':
+        return '{%s}' % type_list[1]
     else:
-        print (t, type_list)
-        raise TypeError
+        raise TypeError(t, type_list)
 
 def indent(elem, level=0):
     if isinstance(elem, str):
@@ -493,17 +513,15 @@ def root_variable(name):
 
 def variable_type(name):
     s = scope_stack[-1]
-    _, typ, _ = s[name]
-    return typ
+    var_type, _ = s[name]
+    return var_type
 
-def declare(lvalue, rvalue, var_type='local'):
-    #print(lvalue, rvalue)
+def declare(lvalue, var_type, var_scope='local'):
     s = scope_stack[-1]
     if var_type == 'argument':
-        s[lvalue] = [None, rvalue, var_type]
+        s[lvalue] = [var_type, var_scope]
     else:
-        initial_expression = compile_expression(rvalue)
-        s[lvalue] = [initial_expression, expression_type(rvalue), var_type]
+        s[lvalue] = [var_type, var_scope]
 
 def is_obj_constructor(rvalue):
     return isinstance(rvalue, list) and is_obj(rvalue[0])
@@ -533,8 +551,6 @@ def expression_type(exp):
         head, *tail = exp
         if head == 'CArray':
             return ['[]'] + expression_type(tail[0])
-        elif head == 'Array':
-            return ['Array'] + expression_type(tail[1])
         elif head == 'cast':
             return tail[0]
         elif is_obj(head):
@@ -544,8 +560,7 @@ def expression_type(exp):
         elif head == 'sizeof':
             return ['size_t']
         else:
-            print(exp)
-            raise TypeError
+            raise TypeError(head,tail)
 
 def is_infix_operator(op):
     return op in infix_operators
@@ -704,6 +719,10 @@ compile_functions = {
 infix_operators = '''
 + - * /
 == !=
++= -=
+*= /=
+< >
+<= >=
 '''.split()
 
 for o in infix_operators:
