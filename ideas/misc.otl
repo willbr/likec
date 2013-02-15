@@ -1,28 +1,3 @@
-= a 0..15
-= a (range 0 15 1)
-=>
-= a (Array 15 int)
-
-each i in 0..15
-    = [a i] i
-
-;;;;
-
-= x 1
-
-switch (+ 1 x)
-    0
-        prn "found"
-        prn "zero"
-    1
-        prn "found"
-        prn "one"
-    default
-        prn "found"
-        prn "other"
-
-;;;;
-
 drop into c
 
 c <<ENDC
@@ -51,42 +26,6 @@ python style
 r"c:\stuff\more\"
 =>
 "c:\\stuff\\more\\"
-
-;;;;
-
-prn "{(+ 5 5)}"
-
-= n 5
-
-prn n
-=> printf "%d\n" n
-
-pr n
-=> printf "%d" n
-
-;;;;
-
-python style format strings
-mixed with c format strings
-
-= n 10
-
-prn "n = {n}"
-=>
-printf "n = %d\n" n
-
-
-prn "n = {n:+04}"
-=>
-printf "n = %+04d\n" n
-
-prn "n = {n:+04d}"
-=>
-printf "n = %+04d\n" n
-
-pr "n = {n}"
-=>
-printf "n = %d" n
 
 ;;;;
 

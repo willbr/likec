@@ -233,7 +233,7 @@ def compile_block(block):
                 if isinstance(a, list):
                     lines.append(a)
                 else:
-                    if a[-1] in '{}':
+                    if a[-1] in '{}:':
                         lines.append(a)
                     else:
                         lines.append(a + ';')
@@ -552,6 +552,35 @@ def compile_cond(*args):
                 compile_block(body)])
     lines.append('}')
     return lines
+
+def compile_switch(exp, *cases):
+    lines = []
+    found_default = False
+    lines.extend(['switch (%s) {' % compile_expression(exp)])
+    for case in cases:
+        exp, *body = case
+        if exp == 'default':
+            found_else = True
+            body.append(['break'])
+            lines.extend([
+                'default:',
+                compile_block(body)])
+        else:
+            if found_default:
+                raise SyntaxError('found condition after default')
+            if body:
+                body.append(['break'])
+            lines.extend([
+                'case %s:' % compile_expression(exp),
+                compile_block(body)])
+    lines.append('}')
+    return lines
+
+def compile_break():
+    return 'break'
+
+def compile_continue():
+    return 'continue'
 
 def compile_address(exp):
     return '(&%s)' % compile_expression(exp)
@@ -884,8 +913,11 @@ compile_functions = {
         'prn': functools.partial(compile_print, end='\\n'),
         'in': compile_in,
         'cond': compile_cond,
+        'switch': compile_switch,
         '&': compile_address,
         'address': compile_address,
+        'break': compile_break,
+        'continue': compile_continue,
         }
 
 infix_operators = '''
