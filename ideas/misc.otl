@@ -8,19 +8,6 @@ each i in 0..15
 
 ;;;;
 
-cond to replace if else if else if else if
-
-cond
-    (== x 1)
-        prn "hello"
-    (or (== c ' '_ ) (== c '\n') (== c '\t'))
-        prn "space"
-    else
-        prn "else"
-
-
-;;;;
-
 = x 1
 
 switch (+ 1 x)

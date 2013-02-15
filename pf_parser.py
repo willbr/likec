@@ -20,7 +20,9 @@ def ast(text):
 def parse_tokens(token_stream):
     statements = []
     while token_stream.has_more_tokens:
-        statements.append(parse_lexp(token_stream))
+        s = parse_lexp(token_stream)
+        if s:
+            statements.append(s)
     return statements
 
 def parse_lexp(token_stream):

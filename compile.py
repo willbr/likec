@@ -5,8 +5,7 @@ import functools
 import collections
 import re
 
-from pf_parser import parse_tokens
-from Tokenizer import Tokenizer
+from pf_parser import ast
 from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
@@ -26,19 +25,18 @@ def scope(fn):
 def main ():
     global main_lines
     input_text = open(argv[1]).read()
-    ts = Tokenizer(input_text)
-    ast = escape(parse_tokens(ts))
+    file_ast = escape(ast(input_text))
 
     #pp (statements)
     #print('\n')
 
     compiled_functions = []
 
-    for s in ast:
+    for s in file_ast:
         if s[0] == 'obj':
             compile_object_fields(s)
 
-    for s in ast:
+    for s in file_ast:
         if s[0] in ['def', 'obj', 'typedef']:
             cs = compile_statement(s)
             if cs:
@@ -527,6 +525,29 @@ def compile_in(a, b):
     else:
         raise TypeError(a, b)
 
+def compile_cond(*args):
+    lines = []
+    found_else = False
+    pred, *body = args[0]
+    lines.extend([
+        'if (%s) {' % compile_expression(pred),
+        compile_block(body)])
+    for test in args[1:]:
+        pred, *body = test
+        if pred == 'else':
+            found_else = True
+            lines.extend([
+                '} else {',
+                compile_block(body)])
+        else:
+            if found_else:
+                raise SyntaxError('found condition after else')
+            lines.extend([
+                '} else if (%s) {' % compile_expression(pred),
+                compile_block(body)])
+    lines.append('}')
+    return lines
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -534,13 +555,13 @@ def split_format_block(block):
         var_name, format_exp = block, default_format_exp(block)
     return var_name, '%%%s' % format_exp
 
-def default_format_exp(var_name):
-    vt = variable_type(var_name)
-    if isinstance(vt, list):
-        if vt == ['*', 'Char']:
-            vt = '*Char'
+def default_format_exp(exp):
+    et = expression_type(exp)
+    if isinstance(et, list):
+        if et == ['*', 'Char']:
+            et = '*Char'
         else:
-            vt = vt[0]
+            et = et[0]
 
     defaults = {
             'int': 'd',
@@ -549,9 +570,9 @@ def default_format_exp(var_name):
             'Char': 'c',
             }
     try:
-        return defaults[vt]
+        return defaults[et]
     except KeyError:
-        raise TypeError('no default format expression for "%s"' % vt)
+        raise TypeError('no default format expression for "%s"' % et)
 
 def remove_quotes(msg):
     return msg[1:-1]
@@ -908,6 +929,7 @@ compile_functions = {
         'pr': compile_print,
         'prn': functools.partial(compile_print, end='\\n'),
         'in': compile_in,
+        'cond': compile_cond,
         }
 
 infix_operators = '''
