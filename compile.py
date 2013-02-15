@@ -485,7 +485,8 @@ def compile_print(msg, end=''):
                 parsed.append(s)
         format_msg = ''.join(parsed)
     else:
-        format_msg = 'magic!'
+        format_msg = '%%%s' % default_format_exp(msg)
+        args.append(msg)
 
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)

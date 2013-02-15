@@ -2,7 +2,7 @@ def main (argc int argv (CArray * char)) int
     = a (List 0 1 2 3 4)
     a append 5
     for (n int) in a
-        printf "%d\n" n
+        prn n
     = b (Array 10 int ;hahahahahaha)
     ) ; comment
     = [b 0] 1234
@@ -12,7 +12,7 @@ b[0] %d
 ENDS
     ; comment
     for i in 0..5
-        printf "range: %d\n" i
+        pr "range: {i}\n"
     return 0
 
 obj List
