@@ -512,10 +512,10 @@ def default_format_exp(var_name):
             vt = vt[0]
 
     defaults = {
-            'int': '%d',
-            'Int': '%d',
-            '*Char': '%s',
-            'Char': '%c',
+            'int': 'd',
+            'Int': 'd',
+            '*Char': 's',
+            'Char': 'c',
             }
     try:
         return defaults[vt]
