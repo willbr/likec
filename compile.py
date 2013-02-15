@@ -371,9 +371,9 @@ def compile_for(a, b, c, *body):
                 '}'
                 ]
     else:
-        init = compile_expression(a)[0]
+        init = compile_expression(a)
         cond = compile_expression(b)
-        step = compile_expression(c)[0]
+        step = compile_expression(c)
         #print(init)
         #print(cond)
         #print(step)
@@ -853,6 +853,9 @@ main_compiled = None
 libraries = {
         'stdio.h': {
             'getchar': [['void'], ['int']],
+            },
+        'stdlib.h': {
+            'malloc': [['size', 'size_t'], ['*', 'void']],
             },
         }
 
