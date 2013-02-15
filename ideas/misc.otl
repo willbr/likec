@@ -1,34 +1,3 @@
-drop into c
-
-c <<ENDC
-void test(int c) {
-    while (c > 0) {
-        puts ("wow");
-        c -= 1;
-    }
-}
-
-ENDC
-
-;;;;
-
-
-C# style string literals
-
-@"c:\stuff\more\"
-=>
-"c:\\stuff\\more\\"
-
-or
-
-python style
-
-r"c:\stuff\more\"
-=>
-"c:\\stuff\\more\\"
-
-;;;;
-
 (range)
 
 for i in (range 10)

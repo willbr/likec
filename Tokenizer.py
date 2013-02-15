@@ -18,6 +18,7 @@ class TokenizerStageOne:
                 ('RANGE_CHAR',  r'%s\.\.\.?%s' % (char_regex, char_regex)),
                 ('NUMBER',  r'(\+|\-)?\d+(\.\d*)?'),
                 ('STRING',  r'"(\\.|[^"])*"'),
+                ('STRING_RAW',  r'r"(\\.|[^"])*"'),
                 ('CHAR',  char_regex),
                 ('BLANK_LINE', r'(?<=\n)\s*\n'),
                 ('NEWLINE', r'\n'),
@@ -169,6 +170,9 @@ class Tokenizer:
                         else:
                             yield Token('ID', end, t.line, t.column)
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)
+                    elif t.typ == 'STRING_RAW':
+                        v = t.value[1:].replace('\\', '\\\\')
+                        yield Token('STRING', v, t.line, t.column)
                     else:
                         yield t
                     ts.advance()
