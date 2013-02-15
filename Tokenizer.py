@@ -8,15 +8,17 @@ Token = collections.namedtuple('Token', ['typ', 'value', 'line', 'column'])
 class TokenizerStageOne:
     def __init__(self, input_string):
         def tokenize(s):
+            char_regex = r'\'(\\.|.)\''
             token_specification = [
                 ('OPEN_PAREN', r'\('),
                 ('CLOSE_PAREN', r'\)'),
                 ('OPEN_SQUARE', r'\['),
                 ('CLOSE_SQUARE', r'\]'),
-                ('RANGE',  r'\d+\.\.\.?\d+'),
+                ('RANGE_NUMBER',  r'\d+\.\.\.?\d+'),
+                ('RANGE_CHAR',  r'%s\.\.\.?%s' % (char_regex, char_regex)),
                 ('NUMBER',  r'(\+|\-)?\d+(\.\d*)?'),
                 ('STRING',  r'"(\\.|[^"])*"'),
-                ('CHAR',  r'\'(\\.|.)\''),
+                ('CHAR',  char_regex),
                 ('BLANK_LINE', r'(?<=\n)\s*\n'),
                 ('NEWLINE', r'\n'),
                 ('INDENT', r'(?<=\n) +'),
@@ -153,14 +155,19 @@ class Tokenizer:
                         yield Token('ID', 'deref', t.line, t.column)
                     elif t.typ == 'CLOSE_SQUARE':
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)
-                    elif t.typ == 'RANGE':
+                    elif t.typ.find('RANGE_') == 0:
                         start, middle, end = re.split('(\.+)', t.value)
-                        if len(middle) == 2:
-                            end = str(int(end) + 1)
                         yield Token('OPEN_PAREN', '(', t.line, t.column)
                         yield Token('ID', 'range', t.line, t.column)
                         yield Token('ID', start, t.line, t.column)
-                        yield Token('ID', end, t.line, t.column)
+                        if len(middle) == 2:
+                            yield Token('OPEN_PAREN', '(', t.line, t.column)
+                            yield Token('ID', '+', t.line, t.column)
+                            yield Token('ID', end, t.line, t.column)
+                            yield Token('ID', '1', t.line, t.column)
+                            yield Token('CLOSE_PAREN', ')', t.line, t.column)
+                        else:
+                            yield Token('ID', end, t.line, t.column)
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)
                     else:
                         yield t

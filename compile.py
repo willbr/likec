@@ -336,7 +336,7 @@ def compile_for(a, b, c, *body):
             start, end, step = compile_range(*c[1:])
             declare(a, 'int')
             init = '%s = %s' % (a, start)
-            cond = '%s < %s' % (a, end)
+            cond = '%s < %s' % (a, compile_expression(end))
             step = '%s += %s' % (a, step)
             for_header = '; '.join((init, cond, step))
             return [
@@ -517,8 +517,15 @@ def compile_in(a, b):
         chars = filter(None, re.split('(\\\\.|.)', b[1:-1]))
         tests = ('%s == \'%s\'' % (a, c) for c in chars)
         return '(%s)' % ' || '.join(tests)
+    elif b[0] == 'range':
+        bottom, top = b[1:]
+        if isinstance(b, list):
+            top = top[1]
+            return '({0} <= {1} && {1} <= {2})'.format(bottom, a, top)
+        else:
+            return '({0} <= {1} && {1} < {2})'.format(bottom, a, top)
     else:
-        raise TypeError
+        raise TypeError(a, b)
 
 def split_format_block(block):
     if block.find(':') >= 0:
@@ -705,6 +712,8 @@ def expression_type(exp):
             return expression_type(tail[0])
         elif head == '_qm_':
             return expression_type(tail[1])
+        elif head == 'range':
+            return expression_type(tail[0])
         else:
             # macro or function call
             if head in macros:
