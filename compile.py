@@ -476,8 +476,8 @@ def compile_print(msg, end=''):
             if s in ['{{', '}}']:
                 parsed.append(s)
             elif s[0] == '{':
-                var_name, format_exp = split_format_block(s[1:-1])
-                args.append(var_name)
+                exp, format_exp = split_format_block(s[1:-1])
+                args.append(compile_expression(ast(exp)[0][0]))
                 parsed.append(format_exp)
             else:
                 parsed.append(s)
