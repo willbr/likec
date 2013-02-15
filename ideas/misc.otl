@@ -1,25 +1,3 @@
-= a (List)
-
-(a append 5)
-append 5 to a
-
-
-= (a b)
-= a.b 5
-= (field a b) 5
-
-;;;;
-
-(in char string)
-
-= c ' '
-
-(in c " \n\t")
-=>
-true
-
-;;;;
-
 = c '0'
 
 (in c '0'..'9')
@@ -382,4 +360,15 @@ each ? ?
 ;;;;
 
 write more tests
+
+;;;;
+
+(in a b)
+
+if a isn't a constant
+eval a ONCE!
+
+a_evaled = eval(a)
+
+a_evaled == [b 0] || a_evaled [b 1]
 

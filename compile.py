@@ -511,6 +511,15 @@ def compile_ternary(cond, t, f):
             )
     #return '(%s ? %s : %s)' % ()
 
+def compile_in(a, b):
+    b_et = expression_type(b)
+    if b_et == ['*', 'Char']:
+        chars = filter(None, re.split('(\\\\.|.)', b[1:-1]))
+        tests = ('%s == \'%s\'' % (a, c) for c in chars)
+        return '(%s)' % ' || '.join(tests)
+    else:
+        raise TypeError
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -889,6 +898,7 @@ compile_functions = {
         'isnt': functools.partial(compile_infix, '!='),
         'pr': compile_print,
         'prn': functools.partial(compile_print, end='\\n'),
+        'in': compile_in,
         }
 
 infix_operators = '''
