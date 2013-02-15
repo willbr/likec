@@ -548,6 +548,9 @@ def compile_cond(*args):
     lines.append('}')
     return lines
 
+def compile_address(exp):
+    return '(&%s)' % compile_expression(exp)
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -930,6 +933,8 @@ compile_functions = {
         'prn': functools.partial(compile_print, end='\\n'),
         'in': compile_in,
         'cond': compile_cond,
+        '&': compile_address,
+        'address': compile_address,
         }
 
 infix_operators = '''
