@@ -10,17 +10,6 @@ append 5 to a
 
 ;;;;
 
-inc a
-dec a
-
-++a
---a
-
-post-inc a
-a++
-
-;;;;
-
 ternary
 
 = z (? (> a b) a b)
