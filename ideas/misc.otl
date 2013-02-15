@@ -352,3 +352,7 @@ a_evaled = eval(a)
 
 a_evaled == [b 0] || a_evaled [b 1]
 
+;;;;
+
+add CArray constructor
+

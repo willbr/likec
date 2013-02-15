@@ -294,14 +294,17 @@ def compile_assignment(lvalue, rvalue):
         #print(lvalue, rvalue)
         declare(lvalue, expression_type(rvalue))
 
-        lines.insert(0, '%s = %s' % (
+        lines.insert(0, '(%s = %s)' % (
             expand_variable(lvalue),
             compile_expression(rvalue)))
 
         for line in post_lines:
             lines.append(compile_expression(line))
 
-    return lines
+    if len(lines) == 1:
+        return lines[0]
+    else:
+        return lines
 
 def compile_call(name, *args):
     if is_obj(name):
@@ -319,7 +322,9 @@ def compile_call(name, *args):
             return '%s(%s)' % (name, ', '.join(compiled_args))
 
 def compile_infix(operator, *operands):
-    return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
+    compiled_operands = [compile_expression(o) for o in operands]
+    return '(%s)' % (' %s ' % operator).join(compiled_operands)
+    #return '(%s)' % (' %s ' % operator).join(compile_expression(o) for o in operands)
 
 def compile_range(start, end=None, step='1'):
     if end == None:
@@ -513,15 +518,15 @@ def compile_in(a, b):
     b_et = expression_type(b)
     if b_et == ['*', 'Char']:
         chars = filter(None, re.split('(\\\\.|.)', b[1:-1]))
-        tests = ('%s == \'%s\'' % (a, c) for c in chars)
+        tests = ('(%s == \'%s\')' % (a, c) for c in chars)
         return '(%s)' % ' || '.join(tests)
     elif b[0] == 'range':
         bottom, top = b[1:]
         if isinstance(b, list):
             top = top[1]
-            return '({0} <= {1} && {1} <= {2})'.format(bottom, a, top)
+            return '(({0} <= {1}) && ({1} <= {2}))'.format(bottom, a, top)
         else:
-            return '({0} <= {1} && {1} < {2})'.format(bottom, a, top)
+            return '(({0} <= {1}) && ({1} < {2}))'.format(bottom, a, top)
     else:
         raise TypeError(a, b)
 
@@ -745,7 +750,15 @@ def expression_type(exp):
             elif head in functions:
                 raise NotImplemented
             else:
-                raise TypeError(exp)
+                f = lookup_library_function(head)
+                if f:
+                    args, return_type = f
+                    return return_type
+            raise TypeError(exp)
+
+def lookup_library_function(func_name):
+    for library in libraries:
+        return libraries[library][func_name]
 
 def field_type(obj, field):
     vt = variable_type(obj)
@@ -838,74 +851,9 @@ main_lines = []
 main_compiled = None
 
 libraries = {
-        'stdio.h': [
-            # File Operations
-            'fopen',
-            # Formatted Output
-            'printf',
-            # Formatted Input
-            'fscanf',
-            # Character Input and Output
-            'puts',
-            # Direct Input and Output
-            'fread',
-            'fwrite',
-            # File Positioning
-            'fseek',
-            'ftell',
-            'rewind',
-            'fgetpos',
-            'fsetpos',
-            # Error
-            'clearerr',
-            'feof',
-            'ferror',
-            'perror',
-            ],
-        'string.h': [
-            'strcpy',
-            'strncpy',
-            'strcmp',
-            'strncmp',
-            'strchr',
-            'strrchr',
-            'strspn',
-            'strcspn',
-            'strpbrk',
-            'strstr',
-            'strlen',
-            'strerror',
-            'strtok',
-            'memcpy',
-            'memmove',
-            'memcmp',
-            'memchr',
-            'memset',
-            ],
-        'stdlib.h': [
-            'atof',
-            'atoi',
-            'atol',
-            'strtod',
-            'strtol',
-            'rand',
-            'srand',
-            'calloc',
-            'malloc',
-            'realloc',
-            'free',
-            'abort',
-            'exit',
-            'atexit',
-            'system',
-            'getenv',
-            'bsearch',
-            'qsort',
-            'abs',
-            'labs',
-            'div',
-            'ldiv',
-            ],
+        'stdio.h': {
+            'getchar': [['void'], ['int']],
+            },
         }
 
 compile_functions = {
