@@ -35,6 +35,10 @@ def main ():
     compiled_functions = []
 
     for s in ast:
+        if s[0] == 'obj':
+            compile_object_fields(s)
+
+    for s in ast:
         if s[0] in ['def', 'obj', 'typedef']:
             cs = compile_statement(s)
             if cs:
@@ -86,6 +90,17 @@ def main ():
         indent(s)
         print()
 
+def compile_object_fields(ast):
+    _, obj_name, *body = ast
+    stack = body[::-1]
+    fields = {}
+    while stack:
+        exp = stack.pop()
+        if exp[0] == 'def':
+            break
+        field_name, field_type = exp
+        fields[field_name] = field_type
+    objects[obj_name] = fields
 
 def compile_statement(statements):
     c = compile_expression(statements)
@@ -278,6 +293,7 @@ def compile_assignment(lvalue, rvalue):
             rvalue = None
 
     if rvalue:
+        #print(lvalue, rvalue)
         declare(lvalue, expression_type(rvalue))
 
         lines.insert(0, '%s = %s' % (
@@ -366,7 +382,7 @@ def compile_for(a, b, c, *body):
 
 def compile_for_in_list(bind_name, bind_type, list_name, *body):
     iterator_name = genvar(list_name, 'iterator')
-    declare(iterator_name, ['cast', ['*', 'List'], 'NULL'])
+    declare(iterator_name, ['*', 'List'])
     declare(bind_name, bind_type)
     init = ['=', iterator_name, list_name]
     cond = ['isnt', ['->',iterator_name,'next'], 'NULL']
@@ -450,6 +466,59 @@ def compile_array_offset(var_name, offset):
         raise TypeError(var_name, vt)
     return '%s[%s]' % (var_name,compile_expression(offset))
 
+def compile_print(msg, end=''):
+    et = expression_type(msg)
+    args = []
+    if et == ['*', 'Char']:
+        msg = remove_quotes(msg)
+        stack = list(filter(None, re.split('({{|{.+?}|}})', msg)[::-1]))
+        parsed = []
+        while stack:
+            s = stack.pop()
+            if s in ['{{', '}}']:
+                parsed.append(s)
+            elif s[0] == '{':
+                var_name, format_exp = split_format_block(s[1:-1])
+                args.append(var_name)
+                parsed.append(format_exp)
+            else:
+                parsed.append(s)
+        format_msg = ''.join(parsed)
+    else:
+        format_msg = 'magic!'
+
+    args.insert(0, '"%s%s"' % (format_msg, end))
+    return 'printf(%s)' % ', '.join(args)
+
+def split_format_block(block):
+    if block.find(':') >= 0:
+        var_name, format_exp = block.split(':')
+    else:
+        var_name, format_exp = block, default_format_exp(block)
+    return var_name, format_exp
+
+def default_format_exp(var_name):
+    vt = variable_type(var_name)
+    if isinstance(vt, list):
+        if vt == ['*', 'Char']:
+            vt = '*Char'
+        else:
+            vt = vt[0]
+
+    defaults = {
+            'int': '%d',
+            'Int': '%d',
+            '*Char': '%s',
+            'Char': '%c',
+            }
+    try:
+        return defaults[vt]
+    except KeyError:
+        raise TypeError('no default format expression for "%s"' % vt)
+
+def remove_quotes(msg):
+    return msg[1:-1]
+
 def expand_variable(v):
     if isinstance(v, list):
         head, *tail = v
@@ -507,6 +576,8 @@ def default_value(type_list):
         return 'NULL'
     elif t == 'Array':
         return '{%s}' % type_list[1]
+    elif t == 'Char':
+        return r"'\0'"
     else:
         raise TypeError(t, type_list)
 
@@ -591,8 +662,39 @@ def expression_type(exp):
             return expression_type(tail[0])
         elif head == 'sizeof':
             return ['size_t']
+        elif head == '->':
+            obj, field = tail
+            return field_type(obj, field)
+        elif head == 'deref':
+            et = expression_type(tail[0])
+            if et[0] == '*':
+                return [et[1]]
+            else:
+                raise TypeError('tried to deref an expression that isn\'t a pointer')
         else:
-            raise TypeError(head,tail)
+            raise TypeError(exp)
+
+def field_type(obj, field):
+    vt = variable_type(obj)
+    if is_obj_variable(vt):
+        obj_name = obj_name_from_variable_type(vt)
+        return objects[obj_name][field]
+    else:
+        raise TypeError('not an object', obj)
+
+def obj_name_from_variable_type(var_type):
+    if isinstance(var_type, list):
+        if var_type[0] == '*' and is_obj(var_type[1]):
+            return var_type[1]
+    else:
+        if is_obj(var_type):
+            return var_type
+
+def is_obj_variable(var_type):
+    if isinstance(var_type, list):
+        return var_type[0] == '*' and is_obj(var_type[1])
+    else:
+        is_obj(var_type)
 
 def is_infix_operator(op):
     return op in infix_operators
@@ -648,6 +750,7 @@ def escape(s):
 scope_stack = [collections.OrderedDict()]
 
 typedefs = []
+objects = {}
 structures = []
 
 function_declarations = []
@@ -746,6 +849,8 @@ compile_functions = {
         'genvar': genvar,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
+        'pr': compile_print,
+        'prn': functools.partial(compile_print, end='\\n'),
         }
 
 infix_operators = '''
