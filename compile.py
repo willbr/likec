@@ -495,7 +495,7 @@ def split_format_block(block):
         var_name, format_exp = block.split(':')
     else:
         var_name, format_exp = block, default_format_exp(block)
-    return var_name, format_exp
+    return var_name, '%%%s' % format_exp
 
 def default_format_exp(var_name):
     vt = variable_type(var_name)
