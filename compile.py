@@ -502,6 +502,14 @@ def compile_post_inc(exp):
 def compile_post_dec(exp):
     return '(%s--)' % compile_expression(exp)
 
+def compile_ternary(cond, t, f):
+    return '(%s ? %s : %s)' % (
+            compile_expression(cond),
+            compile_expression(t),
+            compile_expression(f),
+            )
+    #return '(%s ? %s : %s)' % ()
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -685,6 +693,8 @@ def expression_type(exp):
                 raise TypeError('tried to deref an expression that isn\'t a pointer')
         elif head in ['inc', 'dec', 'post_inc', 'post_dec']:
             return expression_type(tail[0])
+        elif head == '_qm_':
+            return expression_type(tail[1])
         else:
             # macro or function call
             if head in macros:
@@ -873,6 +883,7 @@ compile_functions = {
         'dec': compile_dec,
         'post_inc': compile_post_inc,
         'post_dec': compile_post_dec,
+        '_qm_': compile_ternary,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
         'pr': compile_print,

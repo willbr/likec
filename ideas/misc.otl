@@ -10,12 +10,6 @@ append 5 to a
 
 ;;;;
 
-ternary
-
-= z (? (> a b) a b)
-
-;;;;
-
 (in char string)
 
 = c ' '
