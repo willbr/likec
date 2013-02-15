@@ -490,6 +490,12 @@ def compile_print(msg, end=''):
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)
 
+def compile_inc(exp):
+    return '(++%s)' % compile_expression(exp)
+
+def compile_dec(exp):
+    return '(--%s)' % compile_expression(exp)
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -671,8 +677,16 @@ def expression_type(exp):
                 return [et[1]]
             else:
                 raise TypeError('tried to deref an expression that isn\'t a pointer')
+        elif head == 'inc':
+            return expression_type(tail[0])
         else:
-            raise TypeError(exp)
+            # macro or function call
+            if head in macros:
+                raise NotImplemented
+            elif head in functions:
+                raise NotImplemented
+            else:
+                raise TypeError(exp)
 
 def field_type(obj, field):
     vt = variable_type(obj)
@@ -751,6 +765,8 @@ scope_stack = [collections.OrderedDict()]
 
 typedefs = []
 objects = {}
+macros = {}
+functions = {}
 structures = []
 
 function_declarations = []
@@ -847,6 +863,8 @@ compile_functions = {
         '->': compile_indirect_component,
         'method': compile_method,
         'genvar': genvar,
+        'inc': compile_inc,
+        'dec': compile_dec,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
         'pr': compile_print,
