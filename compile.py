@@ -278,10 +278,7 @@ def compile_assignment(lvalue, rvalue):
             rvalue = None
 
     if rvalue:
-        root = root_variable(lvalue)
-
-        if not in_scope(root):
-            declare(root, expression_type(rvalue))
+        declare(lvalue, expression_type(rvalue))
 
         lines.insert(0, '%s = %s' % (
             expand_variable(lvalue),
@@ -545,11 +542,18 @@ def variable_type(name):
     return var_type
 
 def declare(lvalue, var_type, var_scope='local'):
-    s = scope_stack[-1]
-    if var_type == 'argument':
-        s[lvalue] = [var_type, var_scope]
-    else:
-        s[lvalue] = [var_type, var_scope]
+    root = root_variable(lvalue)
+    if not in_scope(root):
+        if is_deref(lvalue):
+            raise SyntaxError('dereferenced before assignment: %s : %s' % (root, lvalue))
+        s = scope_stack[-1]
+        if var_type == 'argument':
+            s[root] = [var_type, var_scope]
+        else:
+            s[root] = [var_type, var_scope]
+
+def is_deref(rvalue):
+    return isinstance(rvalue, list) and rvalue[0] == 'deref'
 
 def is_obj_constructor(rvalue):
     return isinstance(rvalue, list) and is_obj(rvalue[0])
