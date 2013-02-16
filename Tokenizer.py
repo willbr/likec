@@ -100,6 +100,7 @@ class TokenizerStageOne:
 class Tokenizer:
     def __init__(self, input_string):
         def tokenize(s):
+            #print(s)
             ts = TokenizerStageOne(s)
 
             call_depth = 0
@@ -108,6 +109,7 @@ class Tokenizer:
 
             while ts.has_more_tokens:
                 t = ts.token
+                #print(t)
 
                 if t.typ == 'NEWLINE' and sexp_depth == 0:
                     yield t
@@ -176,6 +178,8 @@ class Tokenizer:
                     else:
                         yield t
                     ts.advance()
+            for i in range(indent_depth):
+                yield Token('BLOCK_END', '', t.line, t.column)
 
         self.tokens = tokenize(input_string)
         self.has_more_tokens = True
