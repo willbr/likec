@@ -550,6 +550,9 @@ def compile_if(pred, *body):
         compile_block(body),
         '}']
 
+def compile_repeat(count, *body):
+    return compile_for('i', 'in', ['range', count], *body)
+
 def compile_switch(exp, *cases):
     lines = []
     found_default = False
@@ -919,6 +922,7 @@ compile_functions = {
         'break': compile_break,
         'continue': compile_continue,
         'if': compile_if,
+        'repeat': compile_repeat,
         }
 
 infix_operators = '''

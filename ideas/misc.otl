@@ -53,32 +53,6 @@ each (n int) (List 1 2 3 4)
 
 ;;;;
 
-while (isnt (= c (getchar)) EOF)
-    if (== c '\n')
-        inc nl
-prn nl
-
-=>
-
-(while (isnt (= c (getchar)) EOF)
-    (if (== c '\n')
-        (inc nl)))
-(prn nl)
-
-;;;;
-
-repeat 5
-    prn "hello"
-
-=>
-hello
-hello
-hello
-hello
-hello
-
-;;;;
-
 copy clojurescript javascript method calls
 
 = a (List)
