@@ -216,3 +216,16 @@ a_evaled == [b 0] || a_evaled [b 1]
 
 add CArray constructor
 
+;;;;
+
+prn "{} == {}" 1 2
+
+printf("%d == %d\n", 1, 2);
+
+;;;;
+
+obj auto add die method
+
+def die
+    free @
+
