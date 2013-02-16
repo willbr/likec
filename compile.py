@@ -506,7 +506,7 @@ def compile_print(msg=None, end=''):
         format_msg = ''.join(parsed)
     else:
         format_msg = '%%%s' % default_format_exp(msg)
-        args.append(msg)
+        args.append(compile_expression(msg))
 
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)
