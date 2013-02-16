@@ -38,7 +38,10 @@ def main ():
             _, func_name, args, return_type, *_ = s
             if isinstance(return_type, str):
                 return_type = [return_type]
-            functions[func_name] = [args, return_type]
+            if func_name in functions:
+                raise SyntaxError('function redefined: %s' % func_name)
+            else:
+                functions[func_name] = [args, return_type]
 
     for s in file_ast:
         if s[0] in ['def', 'obj', 'typedef']:
