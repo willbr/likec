@@ -362,9 +362,8 @@ def compile_for(a, b, c, *body):
                     compile_block(body),
                     '}']
         else:
-            vt = variable_type(c)
-            #print(c, vt)
-            if vt == ['*', 'List']:
+            et = expression_type(c)
+            if et == ['*', 'List']:
                 return compile_for_in_list(a[0], a[1], c, *body)
             c__i = genvar(c + '__i')
             c__limit = genvar(c + '__limit')
@@ -400,7 +399,8 @@ def compile_for(a, b, c, *body):
                 '}']
 
 def compile_for_in_list(bind_name, bind_type, list_name, *body):
-    iterator_name = genvar(list_name, 'iterator')
+    #print(bind_name, bind_type, list_name, body)
+    iterator_name = genvar('List', 'iterator')
     declare(iterator_name, ['*', 'List'])
     declare(bind_name, bind_type)
     init = ['=', iterator_name, list_name]
