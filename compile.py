@@ -478,9 +478,8 @@ def compile_array_offset(var_name, offset):
     return '%s[%s]' % (var_name,compile_expression(offset))
 
 def compile_print(msg, end=''):
-    et = expression_type(msg)
     args = []
-    if et == ['*', 'Char']:
+    if msg[0] == '"':
         msg = remove_quotes(msg)
         stack = list(filter(None, re.split('({{|{.+?}|}})', msg)[::-1]))
         parsed = []
@@ -603,6 +602,7 @@ def split_format_block(block):
 
 def default_format_exp(exp):
     et = expression_type(exp)
+    #print('dfe', exp, et)
     if isinstance(et, list):
         if et == ['*', 'Char']:
             et = '*Char'
@@ -614,6 +614,7 @@ def default_format_exp(exp):
             'Int': 'd',
             '*Char': 's',
             'Char': 'c',
+            '*': 'p',
             }
     try:
         return defaults[et]
@@ -737,7 +738,6 @@ def is_obj(rvalue):
     return isinstance(rvalue, str) and is_uppercase(rvalue[0])
 
 def expression_type(exp):
-    #print(exp)
     if isinstance(exp, str):
         if exp in ['true', 'false']:
             return ['Bool']
@@ -751,10 +751,12 @@ def expression_type(exp):
             return ['Char']
         elif c == '{':
             return ['[]']
+        elif in_scope(exp):
+            return variable_type(exp)
         else:
+            #print(exp)
             return ['Int',]
     else:
-        #print(exp)
         head, *tail = exp
         if head == 'CArray':
             return ['[]'] + expression_type(tail[0])
