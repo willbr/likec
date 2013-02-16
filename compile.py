@@ -551,7 +551,8 @@ def compile_if(pred, *body):
         '}']
 
 def compile_repeat(count, *body):
-    return compile_for('i', 'in', ['range', count], *body)
+    counter_name = genvar('repeat')
+    return compile_for(counter_name, 'in', ['range', count], *body)
 
 def compile_switch(exp, *cases):
     lines = []
