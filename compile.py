@@ -30,7 +30,6 @@ def main ():
     #pp (statements)
     #print('\n')
 
-    compiled_functions = []
 
     for s in file_ast:
         if s[0] == 'obj':
@@ -361,6 +360,7 @@ def compile_for(a, b, c, *body):
                     '}']
         else:
             vt = variable_type(c)
+            #print(c, vt)
             if vt == ['*', 'List']:
                 return compile_for_in_list(a[0], a[1], c, *body)
             c__i = genvar(c + '__i')
@@ -600,6 +600,32 @@ def compile_continue():
 def compile_address(exp):
     return '(&%s)' % compile_expression(exp)
 
+def compile_map(function_name, list_name):
+    map_function_name = 'map_%s' % function_name
+    if map_function_name not in functions:
+        fn = functions[function_name]
+        fn_args, fn_return_type = fn
+        number_of_arguments = len(fn_args) / 2
+        if number_of_arguments != 1:
+            raise TypeError('map functions can only take one argument: %s' % function_name)
+        arg_name, arg_type = fn_args
+        element_type = arg_type
+        code = '''
+def {mfn} (l (* List)) (* List)
+    = nl (List)
+    for (n {et}) in l
+        nl append ({fn} n)
+    return nl
+        '''.format(
+                mfn=map_function_name,
+                et=element_type,
+                fn=function_name,
+                )
+        first_exp = escape(ast(code)[0])
+        cs = compile_statement(first_exp)
+        compiled_functions.append(cs)
+    return compile_call(map_function_name, list_name)
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -666,6 +692,7 @@ def genvar(*args):
     return r
 
 def default_value(type_list):
+    #print(type_list)
     if isinstance(type_list, list):
         if type_list[0] == 'cast':
             t = type_list[1][0]
@@ -791,6 +818,8 @@ def expression_type(exp):
             return expression_type(tail[1])
         elif head == 'range':
             return expression_type(tail[0])
+        elif head in ['map']:
+            return ['*', 'List']
         else:
             # macro or function call
             if head in macros:
@@ -866,7 +895,9 @@ def escape(s):
     if isinstance(s, list):
         return [escape(a) for a in s]
     else:
-        if s in ['->']:
+        if s == '':
+            return s
+        elif s in ['->']:
             return s
         elif s[0] in '\'"-':
             return s
@@ -896,6 +927,7 @@ function_declarations = []
 functions_declared = set()
 function_calls = set()
 compiled_methods = []
+compiled_functions = []
 
 main_defined = False
 main_lines = []
@@ -946,6 +978,7 @@ compile_functions = {
         'continue': compile_continue,
         'if': compile_if,
         'repeat': compile_repeat,
+        'map': compile_map,
         }
 
 infix_operators = '''
