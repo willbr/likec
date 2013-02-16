@@ -494,17 +494,9 @@ def compile_print(msg, end=''):
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)
 
-def compile_inc(exp):
-    return '(++%s)' % compile_expression(exp)
-
-def compile_dec(exp):
-    return '(--%s)' % compile_expression(exp)
-
-def compile_post_inc(exp):
-    return '(%s++)' % compile_expression(exp)
-
-def compile_post_dec(exp):
-    return '(%s--)' % compile_expression(exp)
+def compile_increment(pre='', post='', exp=''):
+    declare(root_variable(exp), ['int'])
+    return '(%s%s%s)' % (pre, compile_expression(exp), post)
 
 def compile_ternary(cond, t, f):
     return '(%s ? %s : %s)' % (
@@ -512,7 +504,6 @@ def compile_ternary(cond, t, f):
             compile_expression(t),
             compile_expression(f),
             )
-    #return '(%s ? %s : %s)' % ()
 
 def compile_in(a, b):
     b_et = expression_type(b)
@@ -787,7 +778,10 @@ def expression_type(exp):
 
 def lookup_library_function(func_name):
     for library in libraries:
-        return libraries[library][func_name]
+        try:
+            return libraries[library][func_name]
+        except KeyError:
+            pass
 
 def field_type(obj, field):
     vt = variable_type(obj)
@@ -902,10 +896,10 @@ compile_functions = {
         '->': compile_indirect_component,
         'method': compile_method,
         'genvar': genvar,
-        'inc': compile_inc,
-        'dec': compile_dec,
-        'post_inc': compile_post_inc,
-        'post_dec': compile_post_dec,
+        'inc': functools.partial(compile_increment, '++', ''),
+        'dec': functools.partial(compile_increment, '--', ''),
+        'post_inc': functools.partial(compile_increment, '', '++'),
+        'post_dec': functools.partial(compile_increment, '', '--'),
         '_qm_': compile_ternary,
         'is': functools.partial(compile_infix, '=='),
         'isnt': functools.partial(compile_infix, '!='),
