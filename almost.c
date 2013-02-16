@@ -31,3 +31,15 @@ obj Int
     def new (n int)
         = [@] n
 
+    def die
+        free @
+
+typedef String_t (* char)
+obj String
+    def new (s (* char))
+        = @ (malloc (+ (strlen s) 1))
+        strcpy [@] s
+
+    def die
+        free @
+

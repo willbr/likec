@@ -103,7 +103,10 @@ def compile_object_fields(ast):
 def compile_statement(statements):
     c = compile_expression(statements)
     if isinstance(c, str):
-        return c + ';'
+        if c[0] + c[-1] == '()':
+            return c[1:-1] + ';'
+        else:
+            return c + ';'
     else:
         return c
 
@@ -253,7 +256,9 @@ def compile_variable(name, var_type):
         else:
             type_stack = var_type[::-1]
         l = [expand_object(type_stack.pop(0))]
-        r = [name]
+        r = []
+        if name:
+            r.append(name)
         while type_stack:
             t = type_stack.pop()
             if t == '*':
@@ -266,14 +271,17 @@ def compile_variable(name, var_type):
                 r.append('[%s]' % size)
             else:
                 raise TypeError(name, t)
-            r.insert(0, '(')
-            r.append(')')
+            if len(r) > 1:
+                r.insert(0, '(')
+                r.append(')')
         return '%s %s' % (''.join(l), ''.join(r))
     else:
         if name == '':
             return var_type
         else:
-            return '%s %s' % (var_type, name)
+            return '%s %s' % (
+                    expand_object(var_type),
+                    name)
 
 def compile_assignment(lvalue, rvalue):
     #print(lvalue, rvalue)
@@ -889,6 +897,10 @@ libraries = {
             },
         'stdlib.h': {
             'malloc': [['size', 'size_t'], ['*', 'void']],
+            },
+        'string.h': {
+            'strcpy': [['s', ['*', 'char'], 'ct', ['*', 'char']], ['*', 'char']],
+            'strlen': [['cs', ['*', 'char']], ['size_t']],
             },
         }
 
