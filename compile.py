@@ -125,7 +125,7 @@ def compile_def (function_name, args, return_type, *body):
     global function_headers
     global main_defined, main_compiled
 
-    call_sig = '({}({}))'.format(
+    call_sig = '{}({})'.format(
         function_name,
         compile_def_arguments(args))
 
@@ -635,7 +635,7 @@ def expand_variable(v):
             else:
                 return compile_array_offset(*tail)
         elif head == '->':
-            return '(%s)' % '->'.join(expand_variable(t) for t in tail)
+            return '%s' % '->'.join(tail)
         else:
             raise ValueError(v)
     else:
