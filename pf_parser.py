@@ -20,7 +20,10 @@ def ast(text):
 def parse_tokens(token_stream):
     statements = []
     while token_stream.has_more_tokens:
-        s = parse_lexp(token_stream)
+        if token_stream.token.typ == 'OPEN_PAREN':
+            s = parse_sexp(token_stream)
+        else:
+            s = parse_lexp(token_stream)
         if s:
             statements.append(s)
     return statements
@@ -89,10 +92,7 @@ def parse_sexp(token_stream):
 
     token_stream.skip('CLOSE_PAREN')
 
-    if sexp:
-        return sexp
-    else:
-        return None
+    return sexp
 
 def indent(e, level=0, start=''):
     if isinstance(e, list):
