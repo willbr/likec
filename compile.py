@@ -35,6 +35,11 @@ def main ():
     for s in file_ast:
         if s[0] == 'obj':
             compile_object_fields(s)
+        elif s[0] == 'def':
+            _, func_name, args, return_type, *_ = s
+            if isinstance(return_type, str):
+                return_type = [return_type]
+            functions[func_name] = [args, return_type]
 
     for s in file_ast:
         if s[0] in ['def', 'obj', 'typedef']:
@@ -444,7 +449,7 @@ def compile_method(obj, method, *args):
         return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
     else:
         if method == 'append':
-            new_args = ([expression_type(a)[0], a] for a in args)
+            new_args = [[expression_type(a)[0], a] for a in args]
         else:
             new_args = args
 
@@ -759,6 +764,7 @@ def expression_type(exp):
             #print(exp)
             return ['Int',]
     else:
+        #print(exp)
         head, *tail = exp
         if head == 'CArray':
             return ['[]'] + expression_type(tail[0])
@@ -790,7 +796,7 @@ def expression_type(exp):
             if head in macros:
                 raise NotImplemented
             elif head in functions:
-                raise NotImplemented
+                return functions[head][1]
             else:
                 f = lookup_library_function(head)
                 if f:
