@@ -477,9 +477,11 @@ def compile_array_offset(var_name, offset):
         raise TypeError(var_name, vt)
     return '%s[%s]' % (var_name,compile_expression(offset))
 
-def compile_print(msg, end=''):
+def compile_print(msg=None, end=''):
     args = []
-    if msg[0] == '"':
+    if msg == None:
+        format_msg = ''
+    elif msg[0] == '"':
         msg = remove_quotes(msg)
         stack = list(filter(None, re.split('({{|{.+?}|}})', msg)[::-1]))
         parsed = []
