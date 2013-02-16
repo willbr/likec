@@ -544,6 +544,12 @@ def compile_cond(*args):
     lines.append('}')
     return lines
 
+def compile_if(pred, *body):
+    return [
+        'if (%s) {' % compile_expression(pred),
+        compile_block(body),
+        '}']
+
 def compile_switch(exp, *cases):
     lines = []
     found_default = False
@@ -912,6 +918,7 @@ compile_functions = {
         'address': compile_address,
         'break': compile_break,
         'continue': compile_continue,
+        'if': compile_if,
         }
 
 infix_operators = '''
