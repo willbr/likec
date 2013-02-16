@@ -229,3 +229,15 @@ obj auto add die method
 def die
     free @
 
+;;;;
+
+typed lists
+
+= a (List int 1 2 3)
+
+---------------------
+a = Int_List_new(NULL)
+Int_List_append(a, 1)
+Int_List_append(a, 2)
+Int_List_append(a, 3)
+
