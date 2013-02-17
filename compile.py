@@ -331,12 +331,13 @@ def compile_variable(name, var_type):
                 r.append(')')
         return '%s %s' % (''.join(l), ''.join(r))
     else:
+        #print(name, var_type)
         if name == '':
-            return var_type
+            return expand_object(var_type)
         else:
-            return '%s %s' % (
-                    expand_object(var_type),
-                    name)
+            eo = expand_object(var_type)
+            #print('cv', var_type, eo)
+            return '%s %s' % (eo, name)
 
 def compile_assignment(lvalue, rvalue):
     lines = []
@@ -702,6 +703,36 @@ def {mfn} (l (* List)) (* List)
         compiled_functions.append(cs)
     return compile_call(map_function_name, list_name)
 
+def compile_filter(function_exp, list_name):
+    function_name = compile_expression(function_exp)
+    filter_function_name = 'filter_%s' % function_name
+    if filter_function_name not in functions:
+        fn = functions[function_name]
+        fn_args, fn_return_type = fn
+        number_of_arguments = len(fn_args) / 2
+        if number_of_arguments != 1:
+            raise TypeError('filter functions can only take one argument: %s' % function_name)
+        arg_name, arg_type = fn_args
+        element_type = arg_type
+        code = '''
+def {ffn} (l (* List)) (* List)
+    = nl (List)
+    for (n {et}) in l
+        if ({fn} n)
+            nl append n
+    return nl
+        '''.format(
+                ffn=filter_function_name,
+                et=type_to_sexp(element_type),
+                fn=function_name,
+                )
+        first_exp = escape(ast(code)[0])
+        #pp(first_exp)
+        #exit()
+        cs = compile_statement(first_exp)
+        compiled_functions.append(cs)
+    return compile_call(filter_function_name, list_name)
+
 def compile_reduce(function_exp, list_expression, initial_value=None):
     function_name = compile_expression(function_exp)
     reduce_function_name = 'reduce_%s' % function_name
@@ -818,14 +849,18 @@ def {fn} (a {vt}) (* void)
         pvt=type_to_sexp(['*'] + var_type),
         )
     first_exp = escape(ast(code)[0])
-    #print(code)
-    #exit()
+    #pp(first_exp)
     cs = compile_statement(first_exp)
+    #print()
+    #indent(cs)
+    #exit()
     compiled_functions.append(cs)
     return compile_call(fn_name, exp)
 
 def compile_sizeof(var_type):
-    return 'sizeof(%s)' % compile_variable('', var_type)
+    cv = compile_variable('', var_type)
+    #print('sizeof', var_type, cv)
+    return 'sizeof(%s)' % cv
 
 def type_to_sexp(t):
     if isinstance(t, list):
@@ -1031,7 +1066,7 @@ def expression_type(exp):
             return expression_type(tail[0])
         elif head == 'not':
             return expression_type(tail[0])
-        elif head in ['map']:
+        elif head in ['map', 'filter']:
             return ['*', 'List']
         elif head in 'reduce':
             return expression_type(tail[0])
@@ -1204,6 +1239,7 @@ compile_functions = {
         'if': compile_if,
         'repeat': compile_repeat,
         'map': compile_map,
+        'filter': compile_filter,
         'reduce': compile_reduce,
         'car': compile_car,
         'not': compile_not,

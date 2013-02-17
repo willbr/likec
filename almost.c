@@ -25,20 +25,20 @@ ENDS
 
     pr "(map doubleit a)\n=>"
     = c (map doubleit a)
-    print-list c
-    prn
+    print-list "c" c
 
 
     = d (map (fn (n int) int (return (+ n 1))) a)
 
     prn "anon function"
+    print-list "d" d
 
-    pr "d:"
-    print-list d
-    prn
 
     = e (reduce {+ $1 $2} a 0)
     prn "e: {e}"
+
+    = f (filter {> $ 2} a)
+    print-list "f" f
 
     = my-name (String "William")
 
@@ -46,9 +46,11 @@ ENDS
 
     return 0
 
-def print-list (l (* List))
+def print-list (name String l (* List))
+    pr "{name}:"
     for (n int) in l
         pr " {n}"
+    prn
 
 
 def doubleit (n Int) Int
