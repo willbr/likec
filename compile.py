@@ -484,13 +484,23 @@ def compile_method(obj, method, *args):
         return '%s__%s(%s)' % (obj, method, compile_arguments(*args))
     else:
         if method == 'append':
-            new_args = [[expression_type(a)[0], a] for a in args]
+            new_args = []
+            for arg in args:
+                new_args.append(make_constructor(arg))
         else:
             new_args = args
+
 
         obj_type = variable_type(obj)[1]
         return '%s__%s(%s)' % (obj_type, method,
                 compile_arguments(obj, *new_args))
+
+def make_constructor(arg):
+    et = expression_type(arg)
+    if isinstance(et, list) and len(et) == 1:
+        return [et[0], arg]
+    else:
+        return ['make_ctype', et, arg]
 
 def compile_arguments(*args):
     return ', '.join(compile_expression(a) for a in args)
@@ -645,7 +655,8 @@ def compile_continue():
 def compile_address(exp):
     return '(&%s)' % compile_expression(exp)
 
-def compile_map(function_name, list_name):
+def compile_map(function_exp, list_name):
+    function_name = compile_expression(function_exp)
     map_function_name = 'map_%s' % function_name
     if map_function_name not in functions:
         fn = functions[function_name]
@@ -716,6 +727,38 @@ def compile_car(list_exp, cast_type=None):
 
 def compile_not(exp):
     return '(!%s)' % compile_expression(exp)
+
+def compile_anonymous_function(args, return_type, *body):
+    fn_name = genvar('anonymous_function')
+    register_function(fn_name, args, return_type)
+    cs = compile_def(fn_name, args, return_type, *body)
+    compiled_functions.append(cs)
+    return fn_name
+
+def compile_make_ctype(var_type, exp):
+    if isinstance(var_type, str):
+        var_type = [var_type]
+    fn_name = 'make_ctype_%s' % '_'.join(var_type)
+    if fn_name not in functions:
+        code = '''
+def {fn} (a {vt}) (* void)
+    = p (cast {pvt} (malloc (sizeof {vt})))
+    = [p] a
+    return p
+'''.format(
+        fn=fn_name,
+        vt=type_to_sexp(var_type),
+        pvt=type_to_sexp(['*'] + var_type),
+        )
+    first_exp = escape(ast(code)[0])
+    #print(code)
+    #exit()
+    cs = compile_statement(first_exp)
+    compiled_functions.append(cs)
+    return compile_call(fn_name, exp)
+
+def compile_sizeof(var_type):
+    return 'sizeof(%s)' % compile_variable('', var_type)
 
 def type_to_sexp(t):
     if isinstance(t, list):
@@ -1098,6 +1141,9 @@ compile_functions = {
         'reduce': compile_reduce,
         'car': compile_car,
         'not': compile_not,
+        'fn': compile_anonymous_function,
+        'make_ctype': compile_make_ctype,
+        'sizeof': compile_sizeof,
         }
 
 infix_operators = '''

@@ -35,19 +35,6 @@ odd:car '(1 2 3)
 
 ;;;;
 
-negate
-
-odd 1
-=> true
-
-not (odd 1)
-=> false
-
-~odd 1
-=> false
-
-;;;;
-
 Stack
 
 push
@@ -267,14 +254,6 @@ Int_List_append(a, 3)
 
 ;;;;
 
-Anon functions
-
-(fn (x int y int) int
-    (prn "point: {x}, {y}")
-    (return 5))
-
-;;;;
-
 Anon single argument functions
 
 Arc style:
@@ -340,4 +319,14 @@ tokenize
 list->next->data
 =>
 (-> list next data)
+
+;;;;
+
+= a (List 1 2 3 4)
+
+prn a
+=>
+prn "{a repr}"
+
+call List method repr
 

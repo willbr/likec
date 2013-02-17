@@ -1,8 +1,11 @@
 def main (argc int argv (CArray * char)) int
     = a (List 0 1 2 3 4)
     a append 5
+    = sum 0
     for (n int) in a
-        prn n
+        += sum n
+    prn "sum: {sum}"
+
     = b (Array 10 int ;hahahahahaha)
     ) ; comment
     = [b 0] 1234
@@ -11,7 +14,7 @@ b[0] %d
 
 ENDS
     ; comment
-    for i in 0..5
+    for i in 0..3
         pr "range: {i}\n"
 
     prn
@@ -23,6 +26,15 @@ ENDS
     pr "(map doubleit a)\n=>"
     = c (map doubleit a)
     print-list c
+    prn
+
+
+    = d (map (fn (n int) int (return (+ n 1))) a)
+
+    prn "anon function"
+
+    pr "d:"
+    print-list d
     prn
 
     = my-name (String "William")
@@ -41,6 +53,7 @@ def doubleit (n Int) Int
 
 def add (a int b int) int
     return (+ a b)
+
 
 typedef String_t (* char)
 obj String
