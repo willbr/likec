@@ -643,10 +643,13 @@ def compile_reduce(function_name, list_expression, initial_value=None):
         number_of_arguments = len(fn_args) / 2
         if number_of_arguments != 2:
             raise TypeError('map functions can only take two argument: %s' % function_name)
-        initial_value = '0'
+        if initial_value == None:
+            compiled_initial_value = default_value(fn_return_type)
+        else:
+            compiled_initial_value = compile_expression(initial_value)
         code = '''
 def {rfn} (l (* List)) {rt}
-    = iv {iv}
+    = iv {civ}
     = memo ({fn} iv (car l {rt}))
     for (e {rt}) in (cdr l)
         = memo ({fn} memo e)
@@ -655,7 +658,7 @@ def {rfn} (l (* List)) {rt}
                 rfn=reduce_function_name,
                 rt=type_to_sexp(fn_return_type),
                 fn=function_name,
-                iv=initial_value,
+                civ=compiled_initial_value,
                 )
         first_exp = escape(ast(code)[0])
         #print(code)
