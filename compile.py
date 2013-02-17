@@ -1112,6 +1112,19 @@ obj Int
         = [@] n
 ''')
 
+std_code.append('''
+obj List
+    next (* List)
+    data (* void)
+
+    def append (new_data (* void))
+        = new_element (List)
+        = new_element->data new_data
+        while (isnt @next NULL)
+            = @ @next
+        = @next new_element
+''')
+
 if __name__ == '__main__':
     main()
 

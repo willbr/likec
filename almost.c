@@ -40,18 +40,6 @@ def add (a int b int) int
 def car (l (* List)) (* void)
     return (-> l next data)
 
-
-obj List
-    next (* List)
-    data (* void)
-
-    def append (new_data (* void))
-        = new_element (List)
-        = new_element->data new_data
-        while (isnt @next NULL)
-            = @ @next
-        = @next new_element
-
 typedef String_t (* char)
 obj String
     def new (s (* char))
