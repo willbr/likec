@@ -40,11 +40,6 @@ def add (a int b int) int
 def car (l (* List)) (* void)
     return (-> l next data)
 
-def cdr (l (* List)) (* List)
-    return (? (== (-> l next) NULL)
-              NULL
-              (-> l next))
-
 
 obj List
     next (* List)

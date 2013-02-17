@@ -21,15 +21,19 @@ def scope(fn):
         return r
     return wrapper
 
+def parse(text):
+    return escape(ast(text))
 
 def main ():
     global main_lines
     input_text = open(argv[1]).read()
-    file_ast = escape(ast(input_text))
+    file_ast = parse(input_text)
 
     #pp (statements)
     #print('\n')
 
+    for code in std_code:
+        file_ast.extend(parse(code))
 
     for s in file_ast:
         if s[0] == 'obj':
@@ -1043,6 +1047,15 @@ infix_operators = '''
 
 for o in infix_operators:
     compile_functions[o] = functools.partial(compile_infix, o)
+
+std_code = []
+
+std_code.append('''
+def cdr (l (* List)) (* List)
+    return (? (== (-> l next) NULL)
+              NULL
+              (-> l next))
+''')
 
 if __name__ == '__main__':
     main()
