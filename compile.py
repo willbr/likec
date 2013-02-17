@@ -1191,6 +1191,17 @@ obj List
         = @next new_element
 ''')
 
+std_code.append('''
+typedef String_t (* char)
+obj String
+    def new (s (* char))
+        = @ (malloc (+ (strlen s) 1))
+        strcpy [@] s
+
+    def die
+        free @
+''')
+
 if __name__ == '__main__':
     main()
 

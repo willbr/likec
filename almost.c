@@ -55,12 +55,3 @@ def add (a int b int) int
     return (+ a b)
 
 
-typedef String_t (* char)
-obj String
-    def new (s (* char))
-        = @ (malloc (+ (strlen s) 1))
-        strcpy [@] s
-
-    def die
-        free @
-

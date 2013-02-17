@@ -274,6 +274,8 @@ Clojure inspired style:
 
 typed anon functions
 
+{+ ($ 1 int) $1}
+
 {+ {% 1 int} %1}
 =>
 (fn (arg1 int) int (return (+ arg1 arg1)))
