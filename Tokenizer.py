@@ -215,15 +215,12 @@ def split_id(value):
         return [value]
     if value == '@':
         return ['self']
-    s = re.split('(@|:|->)', value)
 
-    if s[0] == '':
-        if s[1] == '@':
-            s.pop(0)
-            s.pop(0)
-            r.extend(('->', 'self'))
-        else:
-            s.pop(0)
+    s = list(filter(None, re.split('(@|:|->|\$)', value)))
+
+    if s[0] == '@':
+        s.pop(0)
+        r.extend(('->', 'self'))
 
     for a in s:
         if a == '->':
@@ -233,13 +230,15 @@ def split_id(value):
                 pass
         elif a == ':':
             if r[0] == 'method':
-                raise SyntaxError('found too many ":"')
+                raise SyntaxError('found too many: ":"')
             else:
                 r.insert(0, 'method')
+        elif a == '':
+            pass
         else:
             r.append(a)
 
-    if r[0] == '->':
+    if r[0] in ['->']:
         r.insert(0, '(')
         r.append(')')
 
