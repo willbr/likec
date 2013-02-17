@@ -332,9 +332,10 @@ def compile_call(name, *args):
             vt = variable_type(name)
             return compile_method(name, *args)
         except KeyError:
-            compiled_args = [compile_expression(a) for a in args]
-            function_calls.add(name)
-            return '%s(%s)' % (name, ', '.join(compiled_args))
+            pass
+        compiled_args = [compile_expression(a) for a in args]
+        function_calls.add(name)
+        return '%s(%s)' % (name, ', '.join(compiled_args))
 
 def compile_infix(operator, *operands):
     compiled_operands = [compile_expression(o) for o in operands]
@@ -629,6 +630,45 @@ def {mfn} (l (* List)) (* List)
         compiled_functions.append(cs)
     return compile_call(map_function_name, list_name)
 
+def compile_reduce(function_name, list_expression, initial_value=None):
+    reduce_function_name = 'reduce_%s' % function_name
+    if reduce_function_name not in functions:
+        fn = functions[function_name]
+        #print(function_name, fn)
+        fn_args, fn_return_type = fn
+        number_of_arguments = len(fn_args) / 2
+        if number_of_arguments != 2:
+            raise TypeError('map functions can only take two argument: %s' % function_name)
+        initial_value = '0'
+        code = '''
+def {rfn} (l (* List)) {rt}
+    = iv {iv}
+    = memo ({fn} iv [(cast (* {rt}) (car l))])
+    for (e {rt}) in (cdr l)
+        = memo ({fn} memo e)
+    return memo
+        '''.format(
+                rfn=reduce_function_name,
+                rt=type_to_sexp(fn_return_type),
+                fn=function_name,
+                iv=initial_value,
+                )
+        first_exp = escape(ast(code)[0])
+        #print(code)
+        #exit()
+        cs = compile_statement(first_exp)
+        compiled_functions.append(cs)
+    return compile_call(reduce_function_name, list_expression)
+
+def type_to_sexp(t):
+    if isinstance(t, list):
+        if len(t) > 1:
+            return '(%s)' % ' '.join(map(type_to_sexp, t))
+        else:
+            return t[0]
+    else:
+        return t
+
 def split_format_block(block):
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
@@ -823,6 +863,8 @@ def expression_type(exp):
             return expression_type(tail[0])
         elif head in ['map']:
             return ['*', 'List']
+        elif head in 'reduce':
+            return function_return_type(tail[0])
         else:
             # macro or function call
             if head in macros:
@@ -835,6 +877,11 @@ def expression_type(exp):
                     args, return_type = f
                     return return_type
             raise TypeError(exp)
+
+def function_return_type(function_name):
+    fn = functions[function_name]
+    args, return_type = fn
+    return return_type
 
 def lookup_library_function(func_name):
     for library in libraries:
@@ -982,6 +1029,7 @@ compile_functions = {
         'if': compile_if,
         'repeat': compile_repeat,
         'map': compile_map,
+        'reduce': compile_reduce,
         }
 
 infix_operators = '''

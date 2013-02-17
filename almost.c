@@ -13,7 +13,26 @@ ENDS
     ; comment
     for i in 0..5
         pr "range: {i}\n"
+
+    prn
+
+    pr "reduce: a, "
+    prn (reduce add a)
     return 0
+
+
+
+def add (a int b int) int
+    return (+ a b)
+
+def car (l (* List)) (* void)
+    return (-> l next data)
+
+def cdr (l (* List)) (* List)
+    return (? (== (-> l next) NULL)
+              NULL
+              (-> l next))
+
 
 obj List
     next (* List)

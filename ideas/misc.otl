@@ -1,7 +1,5 @@
 add list functions
 
-reduce fn list initial-value
-
 filter
 car
 cdr
