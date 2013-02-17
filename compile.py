@@ -714,6 +714,9 @@ def compile_car(list_exp, cast_type=None):
 
     return compile_deref(['cast', cast_type, ['car_void', list_exp]])
 
+def compile_not(exp):
+    return '(!%s)' % compile_expression(exp)
+
 def type_to_sexp(t):
     if isinstance(t, list):
         if len(t) > 1:
@@ -916,6 +919,8 @@ def expression_type(exp):
             return expression_type(tail[1])
         elif head == 'range':
             return expression_type(tail[0])
+        elif head == 'not':
+            return expression_type(tail[0])
         elif head in ['map']:
             return ['*', 'List']
         elif head in 'reduce':
@@ -1092,6 +1097,7 @@ compile_functions = {
         'map': compile_map,
         'reduce': compile_reduce,
         'car': compile_car,
+        'not': compile_not,
         }
 
 infix_operators = '''
