@@ -98,6 +98,8 @@ def main ():
         print()
 
 def register_function(function_name, args, return_type):
+    if function_name in compile_functions:
+        raise SyntaxError('Can\'t redefine keyword: %s' % function_name)
     if function_name in functions:
         raise SyntaxError('function redefined: %s' % function_name)
     else:

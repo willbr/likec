@@ -37,9 +37,6 @@ def doubleit (n Int) Int
 def add (a int b int) int
     return (+ a b)
 
-def car (l (* List)) (* void)
-    return (-> l next data)
-
 typedef String_t (* char)
 obj String
     def new (s (* char))
