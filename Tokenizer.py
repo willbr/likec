@@ -216,7 +216,7 @@ def split_id(value):
     if value == '@':
         return ['self']
 
-    s = list(filter(None, re.split('(@|:|->|\$)', value)))
+    s = list(filter(None, re.split('(@|:|->)', value)))
 
     if s[0] == '@':
         s.pop(0)

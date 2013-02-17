@@ -165,6 +165,7 @@ def compile_statement(statements):
         return c
 
 def compile_expression(statements):
+    #print('exp', statements)
     if isinstance(statements, str):
         return expand_variable(statements)
     else:
@@ -483,6 +484,7 @@ def compile_return(exp):
     return 'return %s' % compile_expression(exp)
 
 def compile_cast(typ, exp):
+    #print('cast', typ, exp)
     return '(%s)(%s)' % (
             compile_variable('', typ),
             compile_expression(exp))
@@ -690,10 +692,12 @@ def {mfn} (l (* List)) (* List)
     return nl
         '''.format(
                 mfn=map_function_name,
-                et=element_type,
+                et=type_to_sexp(element_type),
                 fn=function_name,
                 )
         first_exp = escape(ast(code)[0])
+        #pp(first_exp)
+        #exit()
         cs = compile_statement(first_exp)
         compiled_functions.append(cs)
     return compile_call(map_function_name, list_name)
@@ -707,7 +711,7 @@ def compile_reduce(function_exp, list_expression, initial_value=None):
         fn_args, fn_return_type = fn
         number_of_arguments = len(fn_args) / 2
         if number_of_arguments != 2:
-            raise TypeError('map functions can only take two argument: %s' % function_name)
+            raise TypeError('reduce functions can only take two argument: %s' % function_name)
         if initial_value == None:
             compiled_initial_value = default_value(fn_return_type)
         else:
@@ -762,7 +766,13 @@ def expand_anonymous_function_shorthand(*statement):
             else:
                 return [walk_statement(e) for e in  t]
         else:
-            return t
+            if t == '$':
+                return parse_variable('1')
+            elif t[0] == '$':
+                n = t[1:]
+                return parse_variable(n)
+            else:
+                return t
 
     def parse_variable(argument_number, variable_type=None):
         try:
@@ -788,6 +798,8 @@ def expand_anonymous_function_shorthand(*statement):
         args.extend((n, t))
     return_type = expression_type(body)
     scope_stack.pop()
+    #print( ['fn', args, return_type, ['return', body]])
+    #exit()
     return ['fn', args, return_type, ['return', body]]
 
 def compile_make_ctype(var_type, exp):

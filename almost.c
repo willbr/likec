@@ -37,6 +37,9 @@ ENDS
     print-list d
     prn
 
+    = e (reduce {+ $1 $2} a 0)
+    prn "e: {e}"
+
     = my-name (String "William")
 
     prn "goodbye {my-name}"
