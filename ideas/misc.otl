@@ -197,6 +197,16 @@ auto insert die method into objects
 
 ;;;;
 
+add kill function to call die method
+
+= a (List)
+
+(kill a)
+=>
+(a die)
+
+;;;;
+
 Add Stack
 
 ;;;;
@@ -314,4 +324,20 @@ int a[] = {10, 1, 2, 3, 4, 5};
 ;;;;
 
 called void functions  return 0
+
+;;;;
+
+allow users to add methods to std objects
+
+;;;;
+
+allow users to monkey patch functions
+
+;;;;
+
+tokenize
+
+list->next->data
+=>
+(-> list next data)
 

@@ -38,14 +38,12 @@ def main ():
     for s in file_ast:
         if s[0] == 'obj':
             compile_object_fields(s)
+            compile_object_methods(s)
         elif s[0] == 'def':
             _, func_name, args, return_type, *_ = s
             if isinstance(return_type, str):
                 return_type = [return_type]
-            if func_name in functions:
-                raise SyntaxError('function redefined: %s' % func_name)
-            else:
-                functions[func_name] = [args, return_type]
+            register_function(func_name, args, return_type)
 
     for s in file_ast:
         if s[0] in ['def', 'obj', 'typedef']:
@@ -99,6 +97,12 @@ def main ():
         indent(s)
         print()
 
+def register_function(function_name, args, return_type):
+    if function_name in functions:
+        raise SyntaxError('function redefined: %s' % function_name)
+    else:
+        functions[function_name] = [args, return_type]
+
 def compile_object_fields(ast):
     _, obj_name, *body = ast
     stack = body[::-1]
@@ -110,6 +114,26 @@ def compile_object_fields(ast):
         field_name, field_type = exp
         fields[field_name] = field_type
     objects[obj_name] = fields
+
+def compile_object_methods(ast):
+    _, obj_name, *body = ast
+    stack = body[::-1]
+    while stack:
+        exp = stack.pop()
+        if exp[0] != 'def':
+            continue
+        _, method_name, method_args, return_type, *body = exp
+        fn_name = '%s__%s' % (obj_name, method_name)
+        obj_typedef = '%s_t' % obj_name
+
+        if method_name == 'new':
+            if return_type == 'void':
+                return_type = ['*', obj_typedef]
+
+        fn_args = ['self', ['*', obj_name]] + method_args
+
+        register_function(fn_name, fn_args, return_type)
+
 
 def compile_statement(statements):
     c = compile_expression(statements)
@@ -1078,6 +1102,14 @@ def cdr (l (* List)) (* List)
     return (? (== (-> l next) NULL)
               NULL
               (-> l next))
+''')
+
+
+std_code.append('''
+typedef Int_t int
+obj Int
+    def new (n int)
+        = [@] n
 ''')
 
 if __name__ == '__main__':
