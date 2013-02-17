@@ -1,13 +1,3 @@
-add car into compiler
-with type casting
-
-(car list cast-type)
-
-(car a int)
-(car a (* List))
-
-;;;;
-
 add list functions
 
 filter

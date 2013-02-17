@@ -647,7 +647,7 @@ def compile_reduce(function_name, list_expression, initial_value=None):
         code = '''
 def {rfn} (l (* List)) {rt}
     = iv {iv}
-    = memo ({fn} iv [(cast (* {rt}) (car l))])
+    = memo ({fn} iv (car l {rt}))
     for (e {rt}) in (cdr l)
         = memo ({fn} memo e)
     return memo
@@ -663,6 +663,16 @@ def {rfn} (l (* List)) {rt}
         cs = compile_statement(first_exp)
         compiled_functions.append(cs)
     return compile_call(reduce_function_name, list_expression)
+
+def compile_car(list_exp, cast_type=None):
+    if cast_type == None:
+        cast_type = ['*', 'Int']
+    elif isinstance(cast_type, str):
+        cast_type = ['*', cast_type]
+    else:
+        cast_type.insert(0, '*')
+
+    return compile_deref(['cast', cast_type, ['car_void', list_exp]])
 
 def type_to_sexp(t):
     if isinstance(t, list):
@@ -869,6 +879,12 @@ def expression_type(exp):
             return ['*', 'List']
         elif head in 'reduce':
             return function_return_type(tail[0])
+        elif head in 'car':
+            try:
+                return tail[1]
+            except IndexError:
+                pass
+            return ['*', 'void']
         else:
             # macro or function call
             if head in macros:
@@ -1034,6 +1050,7 @@ compile_functions = {
         'repeat': compile_repeat,
         'map': compile_map,
         'reduce': compile_reduce,
+        'car': compile_car,
         }
 
 infix_operators = '''
@@ -1051,6 +1068,9 @@ for o in infix_operators:
 std_code = []
 
 std_code.append('''
+def car-void (l (* List)) (* void)
+    return (-> l next data)
+
 def cdr (l (* List)) (* List)
     return (? (== (-> l next) NULL)
               NULL
