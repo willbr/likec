@@ -537,7 +537,11 @@ def compile_print(msg=None, end=''):
         format_msg = ''.join(parsed)
     else:
         format_msg = '%%%s' % default_format_exp(msg)
-        args.append(compile_expression(msg))
+        et = expression_type(msg)
+        if et == ['*', 'String']:
+            args.append(compile_deref(msg))
+        else:
+            args.append(compile_expression(msg))
 
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)
@@ -725,6 +729,8 @@ def default_format_exp(exp):
     if isinstance(et, list):
         if et == ['*', 'Char']:
             et = '*Char'
+        elif et == ['*', 'String']:
+            et = 'String'
         else:
             et = et[0]
 
@@ -733,6 +739,7 @@ def default_format_exp(exp):
             'Int': 'd',
             '*Char': 's',
             'Char': 'c',
+            'String': 's',
             '*': 'p',
             }
     try:
