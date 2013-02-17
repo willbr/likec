@@ -332,12 +332,13 @@ def compile_assignment(lvalue, rvalue):
             for arg in args:
                 post_lines.append(['method', lvalue, 'append', arg])
         elif obj_type == 'Array':
+            #print(lvalue, rvalue)
             declare(lvalue, rvalue)
             rvalue = None
 
     if rvalue:
-        #print(lvalue, rvalue)
-        declare(lvalue, expression_type(rvalue))
+        et = expression_type(rvalue)
+        declare(lvalue, et)
 
         lines.insert(0, '(%s = %s)' % (
             expand_variable(lvalue),
@@ -530,7 +531,13 @@ def compile_print(msg=None, end=''):
                 parsed.append(s)
             elif s[0] == '{':
                 exp, format_exp = split_format_block(s[1:-1])
-                args.append(compile_expression(ast(exp)[0][0]))
+                exp_ast = parse(exp)[0][0]
+                et = expression_type(exp_ast)
+                if et == ['*', 'String']:
+                    args.append(compile_deref(exp_ast))
+                    format_exp = '%s'
+                else:
+                    args.append(compile_expression(exp_ast))
                 parsed.append(format_exp)
             else:
                 parsed.append(s)
@@ -717,6 +724,7 @@ def type_to_sexp(t):
         return t
 
 def split_format_block(block):
+    #print(block)
     if block.find(':') >= 0:
         var_name, format_exp = block.split(':')
     else:
@@ -850,10 +858,7 @@ def declare(lvalue, var_type, var_scope='local'):
         if is_deref(lvalue):
             raise SyntaxError('dereferenced before assignment: %s : %s' % (root, lvalue))
         s = scope_stack[-1]
-        if var_type == 'argument':
-            s[root] = [var_type, var_scope]
-        else:
-            s[root] = [var_type, var_scope]
+        s[root] = [var_type, var_scope]
 
 def is_deref(rvalue):
     return isinstance(rvalue, list) and rvalue[0] == 'deref'

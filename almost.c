@@ -24,6 +24,11 @@ ENDS
     = c (map doubleit a)
     print-list c
     prn
+
+    = my-name (String "William")
+
+    prn "goodbye {my-name}"
+
     return 0
 
 def print-list (l (* List))
