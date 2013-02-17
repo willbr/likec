@@ -283,6 +283,18 @@ Clojure inspired style:
 (fn (ARG int) int
     (+ ARG 10))
 
+typed anon functions
+
+{+ {% 1 int} %1}
+=>
+(fn (arg1 int) int (return (+ arg1 arg1)))
+
+defualt to type int
+
+{+ %1 %1}
+=>
+(fn (arg1 int) int (return (+ arg1 arg1)))
+
 ;;;;
 
 (? (> x 0) 1)
@@ -290,4 +302,16 @@ Clojure inspired style:
 else defaults to 0
 =>
 (? (> x 0) 1 0)
+
+;;;;
+
+array initial values
+
+= a (Array 10 ints 1 2 3 4 5)
+=>
+int a[] = {10, 1, 2, 3, 4, 5};
+
+;;;;
+
+called void functions  return 0
 
