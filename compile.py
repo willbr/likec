@@ -24,6 +24,20 @@ def scope(fn):
 def parse(text):
     return escape(ast(text))
 
+def expand_macros(tree):
+    if isinstance(tree, list):
+        if not tree:
+            return tree
+        head, *tail = tree
+        if isinstance(head, list):
+            pass
+        elif head in macro_functions:
+            tree = macro_functions[head](*tail)
+            return [expand_macros(leaf) for leaf in tree]
+        return [expand_macros(leaf) for leaf in tree]
+    else:
+        return tree
+
 def main ():
     global main_lines
     input_text = open(argv[1]).read()
@@ -35,7 +49,9 @@ def main ():
     for code in std_code:
         file_ast.extend(parse(code))
 
-    for s in file_ast:
+    file_ast_post_macro = expand_macros(file_ast)
+
+    for s in file_ast_post_macro:
         if s[0] == 'obj':
             compile_object_fields(s)
             compile_object_methods(s)
@@ -45,7 +61,7 @@ def main ():
                 return_type = [return_type]
             register_function(func_name, args, return_type)
 
-    for s in file_ast:
+    for s in file_ast_post_macro:
         if s[0] in ['def', 'obj', 'typedef']:
             cs = compile_statement(s)
             if cs:
@@ -322,7 +338,6 @@ def compile_variable(name, var_type):
                     name)
 
 def compile_assignment(lvalue, rvalue):
-    #print(lvalue, rvalue)
     lines = []
     post_lines = []
 
@@ -683,7 +698,8 @@ def {mfn} (l (* List)) (* List)
         compiled_functions.append(cs)
     return compile_call(map_function_name, list_name)
 
-def compile_reduce(function_name, list_expression, initial_value=None):
+def compile_reduce(function_exp, list_expression, initial_value=None):
+    function_name = compile_expression(function_exp)
     reduce_function_name = 'reduce_%s' % function_name
     if reduce_function_name not in functions:
         fn = functions[function_name]
@@ -730,11 +746,49 @@ def compile_not(exp):
     return '(!%s)' % compile_expression(exp)
 
 def compile_anonymous_function(args, return_type, *body):
+    #print(args, return_type, body)
     fn_name = genvar('anonymous_function')
     register_function(fn_name, args, return_type)
     cs = compile_def(fn_name, args, return_type, *body)
     compiled_functions.append(cs)
     return fn_name
+
+def expand_anonymous_function_shorthand(*statement):
+    def walk_statement(t):
+        if isinstance(t, list):
+            head, *tail = t
+            if head == '$':
+                return parse_variable(*tail)
+            else:
+                return [walk_statement(e) for e in  t]
+        else:
+            return t
+
+    def parse_variable(argument_number, variable_type=None):
+        try:
+            return local_variables[argument_number]['name']
+        except KeyError:
+            variable_name = genvar('arg')
+            local_variables[argument_number] = {
+                    'name': variable_name,
+                    'type': variable_type or ['Int'],
+                    }
+            return variable_name
+
+    local_variables = {}
+
+    body = walk_statement(list(statement))
+    sorted_variables = collections.OrderedDict(
+            sorted(local_variables.items()))
+    args = []
+    scope_stack.append(collections.OrderedDict())
+    for k, v in sorted_variables.items():
+        n, t = v['name'], v['type']
+        declare(n, t, 'argument')
+        args.extend((n, t))
+    return_type = expression_type(body)
+    scope_stack.pop()
+    return ['fn', args, return_type, ['return', body]]
 
 def compile_make_ctype(var_type, exp):
     if isinstance(var_type, str):
@@ -968,18 +1022,17 @@ def expression_type(exp):
         elif head in ['map']:
             return ['*', 'List']
         elif head in 'reduce':
-            return function_return_type(tail[0])
+            return expression_type(tail[0])
         elif head in 'car':
             try:
                 return tail[1]
             except IndexError:
                 pass
             return ['*', 'void']
+        elif head in 'fn':
+            return tail[1]
         else:
-            # macro or function call
-            if head in macros:
-                raise NotImplemented
-            elif head in functions:
+            if head in functions:
                 return functions[head][1]
             else:
                 f = lookup_library_function(head)
@@ -1145,6 +1198,10 @@ compile_functions = {
         'fn': compile_anonymous_function,
         'make_ctype': compile_make_ctype,
         'sizeof': compile_sizeof,
+        }
+
+macro_functions = {
+        'fn_shorthand': expand_anonymous_function_shorthand,
         }
 
 infix_operators = '''

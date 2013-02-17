@@ -254,40 +254,6 @@ Int_List_append(a, 3)
 
 ;;;;
 
-Anon single argument functions
-
-Arc style:
-(map [+ _ 10] '(1 2 3))
-
-Likec:
-(map {+ _ 10} (List 1 2 3))
-
-or
-
-Clojure inspired style:
-(map {+ %1 10} (List 1 2 3))
-
-{+ _ 10}
-=>
-(fn (ARG int) int
-    (+ ARG 10))
-
-typed anon functions
-
-{+ ($ 1 int) $1}
-
-{+ {% 1 int} %1}
-=>
-(fn (arg1 int) int (return (+ arg1 arg1)))
-
-defualt to type int
-
-{+ %1 %1}
-=>
-(fn (arg1 int) int (return (+ arg1 arg1)))
-
-;;;;
-
 (? (> x 0) 1)
 
 else defaults to 0

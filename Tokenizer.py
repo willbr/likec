@@ -14,6 +14,8 @@ class TokenizerStageOne:
                 ('CLOSE_PAREN', r'\)'),
                 ('OPEN_SQUARE', r'\['),
                 ('CLOSE_SQUARE', r'\]'),
+                ('OPEN_CURLY', r'\{'),
+                ('CLOSE_CURLY', r'\}'),
                 ('RANGE_NUMBER',  r'\d+\.\.\.?\d+'),
                 ('RANGE_CHAR',  r'%s\.\.\.?%s' % (char_regex, char_regex)),
                 ('NUMBER',  r'(\+|\-)?\d+(\.\d*)?'),
@@ -26,7 +28,7 @@ class TokenizerStageOne:
                 ('SKIP',    r'[ \t]'),
                 ('COMMENT',    r';.*'),
                 ('HEREDOC',    r'<<\S+'),
-                ('ID',    r'[^\s\(\)\[\]"]+'),
+                ('ID',    r'[^\s\(\)\[\]\{\}"]+'),
             ]
             tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
             get_token = re.compile(tok_regex).match
@@ -157,6 +159,11 @@ class Tokenizer:
                         yield Token('OPEN_PAREN', '(', t.line, t.column)
                         yield Token('ID', 'deref', t.line, t.column)
                     elif t.typ == 'CLOSE_SQUARE':
+                        yield Token('CLOSE_PAREN', ')', t.line, t.column)
+                    elif t.typ == 'OPEN_CURLY':
+                        yield Token('OPEN_PAREN', '(', t.line, t.column)
+                        yield Token('ID', 'fn-shorthand', t.line, t.column)
+                    elif t.typ == 'CLOSE_CURLY':
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)
                     elif t.typ.find('RANGE_') == 0:
                         start, middle, end = re.split('(\.+)', t.value)
