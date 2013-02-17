@@ -89,13 +89,14 @@ def main ():
         indent(md)
         print()
 
-    indent(main_compiled)
-    print()
-
     for s in compiled_functions:
         #pp(s)
         indent(s)
         print()
+
+    indent(main_compiled)
+    print()
+
 
 def register_function(function_name, args, return_type):
     if function_name in compile_functions:
