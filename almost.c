@@ -18,9 +18,21 @@ ENDS
 
     pr "reduce: a, "
     prn (reduce add a)
+    prn
+
+    pr "(map doubleit a)\n=>"
+    = c (map doubleit a)
+    print-list c
+    prn
     return 0
 
+def print-list (l (* List))
+    for (n int) in l
+        pr " {n}"
 
+
+def doubleit (n Int) Int
+    return (+ n n)
 
 def add (a int b int) int
     return (+ a b)
