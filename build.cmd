@@ -14,7 +14,7 @@ exit /b
     exit /b %ERRORLEVEL%
 
 :test
-    python test_tokenizer.py
+    python -m unittest discover
     exit /b %ERRORLEVEL%
 
 :g
