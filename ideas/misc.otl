@@ -285,3 +285,6 @@ prn "{a repr}"
 
 call List method repr
 
+;;;;
+
+add logging
