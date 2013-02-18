@@ -40,6 +40,10 @@ ENDS
     = f (filter {> $ 2} a)
     print-list "f" f
 
+    = g (Array 10 int 1 2 3)
+    prn "array length: {[g]}"
+    prn "array item 2: {[g 2]}"
+
     = my-name (String "William")
 
     prn "goodbye {my-name}"

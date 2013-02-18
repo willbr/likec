@@ -304,16 +304,23 @@ def compile_def_arguments(args):
     return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
 def compile_variable(name, var_type):
-    #print(name, var_type)
+    #print('compile_variable', name, var_type)
     if isinstance(var_type, list):
+        l = []
+        r = []
+
         if var_type[0] == 'cast':
             type_stack = var_type[1][::-1]
+        elif var_type[0] == 'Array':
+            type_stack = var_type[:3][::-1]
         else:
             type_stack = var_type[::-1]
+
         l = [expand_object(type_stack.pop(0))]
-        r = []
+
         if name:
             r.append(name)
+
         while type_stack:
             t = type_stack.pop()
             if t == '*':
@@ -324,6 +331,7 @@ def compile_variable(name, var_type):
                 # + 1 because element 0 is length
                 size = int(type_stack.pop()) + 1
                 r.append('[%s]' % size)
+                break
             else:
                 raise TypeError(name, t)
             if len(r) > 1:
@@ -385,6 +393,9 @@ def compile_call(name, *args):
         compiled_args = [compile_expression(a) for a in args]
         function_calls.add(name)
         return '%s(%s)' % (name, ', '.join(compiled_args))
+
+def compile_expressions(exps):
+    return [compile_expression(e) for e in exps]
 
 def compile_infix(operator, *operands):
     compiled_operands = [compile_expression(o) for o in operands]
@@ -466,12 +477,14 @@ def compile_while(cond, *body):
             compile_block(body),
             '}']
 
-def compile_array(length, array_type):
-    return '{%s}' % length
+def compile_array(length, array_type, initial_values=None):
+    raise SyntaxError('how did I get here/')
+    return '{asdf %s%s}' % (length, ', '.join(initial_values))
 
 def compile_variable_declarations():
     declarations = []
     s = scope_stack[-1]
+    #pp(s)
     for lvalue, value in sorted(s.items()):
         var_type, var_scope = value
         #print(lvalue, var_type, var_scope)
@@ -547,37 +560,49 @@ def compile_array_offset(var_name, offset):
     return '%s[%s]' % (var_name,compile_expression(offset))
 
 def compile_print(msg=None, end=''):
+    #print('compile_print', msg, end)
     args = []
     if msg == None:
         format_msg = ''
     elif msg[0] == '"':
         msg = remove_quotes(msg)
         stack = list(filter(None, re.split('({{|{.+?}|}})', msg)[::-1]))
+        #print(stack)
         parsed = []
         while stack:
             s = stack.pop()
             if s in ['{{', '}}']:
                 parsed.append(s)
             elif s[0] == '{':
-                exp, format_exp = split_format_block(s[1:-1])
-                exp_ast = parse(exp)[0][0]
-                et = expression_type(exp_ast)
+                contents = s[1:-1]
+                exp, format_exp = split_format_block(contents)
+
+                if exp[0] in ['(', '[']:
+                    exp_ast = parse(exp)[0]
+                    et = expression_type(exp_ast)
+                else:
+                    variable_name = escape(exp)
+                    et = variable_type(variable_name)
+                    exp_ast = variable_name
+
                 if et == ['*', 'String']:
                     args.append(compile_deref(exp_ast))
                     format_exp = '%s'
                 else:
                     args.append(compile_expression(exp_ast))
+
                 parsed.append(format_exp)
             else:
                 parsed.append(s)
         format_msg = ''.join(parsed)
     else:
-        format_msg = '%%%s' % default_format_exp(msg)
+        ce_msg = compile_expression(msg)
         et = expression_type(msg)
         if et == ['*', 'String']:
             args.append(compile_deref(msg))
         else:
-            args.append(compile_expression(msg))
+            args.append(ce_msg)
+        format_msg = '%%%s' % default_format_exp(ce_msg)
 
     args.insert(0, '"%s%s"' % (format_msg, end))
     return 'printf(%s)' % ', '.join(args)
@@ -887,6 +912,8 @@ def default_format_exp(exp):
             et = '*Char'
         elif et == ['*', 'String']:
             et = 'String'
+        elif et[0] == 'Array':
+            raise SyntaxError('can\'t print an Array')
         else:
             et = et[0]
 
@@ -963,7 +990,7 @@ def default_value(type_list):
     elif t == 'List':
         return 'NULL'
     elif t == 'Array':
-        return '{%s}' % type_list[1]
+        return '{%s}' % ', '.join([type_list[1]] + type_list[3:])
     elif t == 'Char':
         return r"'\0'"
     else:
@@ -1056,8 +1083,10 @@ def expression_type(exp):
             et = expression_type(tail[0])
             if et[0] == '*':
                 return [et[1]]
+            elif et[0] == 'Array':
+                return ['[]', et[2]]
             else:
-                raise TypeError('tried to deref an expression that isn\'t a pointer')
+                raise TypeError('tried to deref an expression that isn\'t a pointer', et)
         elif head in ['inc', 'dec', 'post_inc', 'post_dec']:
             return expression_type(tail[0])
         elif head == '_qm_':

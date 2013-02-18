@@ -44,6 +44,10 @@ pop
 a.push 4
 a push 3
 
+a pop
+
+a pop type
+
 ;;;;
 
 replace `for in list` with each
@@ -258,14 +262,6 @@ Int_List_append(a, 3)
 else defaults to 0
 =>
 (? (> x 0) 1 0)
-
-;;;;
-
-array initial values
-
-= a (Array 10 ints 1 2 3 4 5)
-=>
-int a[] = {10, 1, 2, 3, 4, 5};
 
 ;;;;
 
