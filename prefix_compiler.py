@@ -467,6 +467,31 @@ def compile_for_in_list(bind_name, bind_type, list_name, *body):
     bind = ['=', bind_name, ['deref', ['cast', ['*', bind_type], ['->', ['->', iterator_name, 'next'], 'data']]]]
     return compile_for(init, cond, step, bind, *body)
 
+def compile_each(bind_expression, list_expression, *body):
+    bind_name, bind_type = compile_bind(bind_expression)
+    head, *tail = list_expression
+    if head == 'range':
+        start, end, step = compile_range(*tail)
+        declare(bind_name, bind_type)
+        init = '%s = %s' % (bind_name, start)
+        cond = '%s < %s' % (bind_name, compile_expression(end))
+        step = '%s += %s' % (bind_name, step)
+        for_header = '; '.join((init, cond, step))
+        return [
+                'for (%s) {' % for_header,
+                compile_block(body),
+                '}']
+    else:
+        raise NotImplemented
+
+def compile_bind(exp):
+    if isinstance(exp, str):
+        return exp, ['Int']
+    else:
+        if len(exp) != 2:
+            raise SyntaxError('Invalid bind expression', exp)
+        return exp
+
 def compile_while(cond, *body):
     compile_condition = compile_expression(cond)
     return [
@@ -1272,6 +1297,7 @@ compile_functions = {
         'fn': compile_anonymous_function,
         'make_ctype': compile_make_ctype,
         'sizeof': compile_sizeof,
+        'each': compile_each,
         }
 
 macro_functions = {

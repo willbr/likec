@@ -30,6 +30,14 @@ def hyphen-test
                 ['1', '10', '2']
                 )
 
+
+    def test_compile_each_range(self):
+        self.assertEqual(
+                prefix_compiler.compile_each('i', ['range', '5'],
+                    ['prn', 'i']),
+                ['for (i = 0; i < 5; i += 1) {',['printf("%d\\n", i);'], '}']
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
