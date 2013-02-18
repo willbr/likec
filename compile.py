@@ -611,7 +611,7 @@ def compile_increment(pre='', post='', exp=''):
     declare(root_variable(exp), ['int'])
     return '(%s%s%s)' % (pre, compile_expression(exp), post)
 
-def compile_ternary(cond, t, f):
+def compile_ternary(cond, t, f='0'):
     return '(%s ? %s : %s)' % (
             compile_expression(cond),
             compile_expression(t),

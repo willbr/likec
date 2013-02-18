@@ -257,14 +257,6 @@ Int_List_append(a, 3)
 
 ;;;;
 
-(? (> x 0) 1)
-
-else defaults to 0
-=>
-(? (> x 0) 1 0)
-
-;;;;
-
 called void functions  return 0
 
 ;;;;
