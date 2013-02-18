@@ -941,6 +941,7 @@ def default_format_exp(exp):
 
     defaults = {
             'int': 'd',
+            'float': 'f',
             'Int': 'd',
             '*Char': 's',
             'Char': 'c',
@@ -1001,6 +1002,8 @@ def default_value(type_list):
 
     if t == 'int':
         return '0'
+    elif t == 'float':
+        return '0.0'
     elif t == '*':
         return 'NULL'
     elif t == '[]':
