@@ -394,9 +394,6 @@ def compile_call(name, *args):
         function_calls.add(name)
         return '%s(%s)' % (name, ', '.join(compiled_args))
 
-def compile_expressions(exps):
-    return [compile_expression(e) for e in exps]
-
 def compile_infix(operator, *operands):
     compiled_operands = [compile_expression(o) for o in operands]
     return '(%s)' % (' %s ' % operator).join(compiled_operands)
