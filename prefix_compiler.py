@@ -5,7 +5,7 @@ import functools
 import collections
 import re
 
-from pf_parser import ast
+from prefix_parser import ast
 from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint

@@ -1,5 +1,5 @@
 import pprint
-from Tokenizer import Tokenizer
+from prefix_tokenizer import Tokenizer
 from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint

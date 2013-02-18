@@ -10,7 +10,7 @@ exit /b
 
 :c
 :compile
-    python compile.py %1
+    python prefix_compiler.py %1
     exit /b %ERRORLEVEL%
 
 :test
@@ -29,11 +29,11 @@ exit /b
 
 :p
 :parse
-    python pf_parser.py %1
+    python prefix_parser.py %1
     exit /b %ERRORLEVEL%
 
 :t
 :tokens
-    python Tokenizer.py %1
+    python prefix_tokenizer.py %1
     exit /b %ERRORLEVEL%
 
