@@ -304,7 +304,7 @@ def compile_def_arguments(args):
     return ', '.join(compile_variable(n, t) for n, t in paired_args)
 
 def compile_variable(name, var_type):
-    #print('compile_variable', name, var_type)
+    #print('compile_variable', name or 'no-name', var_type)
     if isinstance(var_type, list):
         l = []
         r = []
@@ -337,6 +337,7 @@ def compile_variable(name, var_type):
             if len(r) > 1:
                 r.insert(0, '(')
                 r.append(')')
+            #print(l, r)
         return '%s %s' % (''.join(l), ''.join(r))
     else:
         #print(name, var_type)
@@ -470,6 +471,7 @@ def compile_for_in_list(bind_name, bind_type, list_name, *body):
 def compile_each(bind_expression, list_expression, *body):
     bind_name, bind_type = compile_bind(bind_expression)
     head, *tail = list_expression
+    et = expression_type(list_expression)
     if head == 'range':
         start, end, step = compile_range(*tail)
         declare(bind_name, bind_type)
@@ -481,6 +483,26 @@ def compile_each(bind_expression, list_expression, *body):
                 'for (%s) {' % for_header,
                 compile_block(body),
                 '}']
+    elif head == 'list':
+        # new list
+        # assign to temp variable
+        # then compile for
+        raise NotImplemented
+    elif et == ['*', 'List']:
+        list_name = list_expression
+        iterator_name = genvar('List', 'iterator')
+        declare(iterator_name, ['*', 'List'])
+        declare(bind_name, bind_type)
+        init = ['=', iterator_name, list_name]
+        cond = ['isnt', ['->',iterator_name,'next'], 'NULL']
+        step = ['=', iterator_name, ['->',iterator_name,'next']]
+        bind = ['=', bind_name, ['deref', ['cast', ['*'] + bind_type, ['->', ['->', iterator_name, 'next'], 'data']]]]
+        #print(init)
+        #print(cond)
+        #print(step)
+        #print(bind)
+        #pp(body)
+        return compile_for(init, cond, step, bind, *body)
     else:
         raise NotImplemented
 
@@ -488,9 +510,15 @@ def compile_bind(exp):
     if isinstance(exp, str):
         return exp, ['Int']
     else:
-        if len(exp) != 2:
-            raise SyntaxError('Invalid bind expression', exp)
-        return exp
+        try:
+            bind_name, bind_type = exp
+        except ValueError:
+            raise SyntaxError('Invalid bind expression')
+
+        if isinstance(bind_type, str):
+            return bind_name, [bind_type]
+        else:
+            return bind_name, bind_type
 
 def compile_while(cond, *body):
     compile_condition = compile_expression(cond)

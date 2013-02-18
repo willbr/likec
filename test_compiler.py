@@ -38,6 +38,13 @@ def hyphen-test
                 ['for (i = 0; i < 5; i += 1) {',['printf("%d\\n", i);'], '}']
                 )
 
+    def test_compile_each_list(self):
+        compile_code ('= a (List 1 2)')
+        self.assertEqual(
+                prefix_compiler.compile_each('i', 'a',
+                    ['prn', 'i']),
+                ['for (i = 0; i < 5; i += 1) {',['printf("%d\\n", i);'], '}']
+                )
 if __name__ == '__main__':
     unittest.main()
 
