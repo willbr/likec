@@ -24,6 +24,7 @@ def scope(fn):
 def parse(text):
     return escape(ast(text))
 
+
 def expand_macros(tree):
     if isinstance(tree, list):
         if not tree:
@@ -38,6 +39,7 @@ def expand_macros(tree):
     else:
         return tree
 
+
 def main ():
     global main_lines
     input_text = open(argv[1]).read()
@@ -46,8 +48,8 @@ def main ():
     #pp (statements)
     #print('\n')
 
-    for code in std_code:
-        file_ast.extend(parse(code))
+    with open('standard_code.likec') as f:
+        file_ast.extend(parse(f.read()))
 
     file_ast_post_macro = expand_macros(file_ast)
 
@@ -122,6 +124,7 @@ def register_function(function_name, args, return_type):
     else:
         functions[function_name] = [args, return_type]
 
+
 def compile_object_fields(ast):
     _, obj_name, *body = ast
     stack = body[::-1]
@@ -133,6 +136,7 @@ def compile_object_fields(ast):
         field_name, field_type = exp
         fields[field_name] = field_type
     objects[obj_name] = fields
+
 
 def compile_object_methods(ast):
     _, obj_name, *body = ast
@@ -1344,53 +1348,68 @@ infix_operators = '''
 <= >=
 '''.split()
 
+
 for o in infix_operators:
     compile_functions[o] = functools.partial(compile_infix, o)
 
-std_code = []
 
-std_code.append('''
-def car-void (l (* List)) (* void)
-    return (-> l next data)
+class PrefixCompiler:
+    input_files = []
+    code = []
 
-def cdr (l (* List)) (* List)
-    return (? (== (-> l next) NULL)
-              NULL
-              (-> l next))
-''')
+    code_ast = []
+    post_macro_ast = []
+
+    def __init__(self):
+        self.add_file('standard_code.likec')
+
+    def compile_code(self, output_filename=None):
+        if output_filename == None:
+            print('stdout')
+        else:
+            print('write to file')
+
+        self.read_files()
+        self.parse_code()
+        self.expand_macros()
+        self.extract_types()
 
 
-std_code.append('''
-typedef Int_t int
-obj Int
-    def new (n int)
-        = [@] n
-''')
+    def add_file(self, filename):
+        self.input_files.append(filename)
 
-std_code.append('''
-obj List
-    next (* List)
-    data (* void)
+    def read_files(self):
+        for filename in self.input_files:
+            with open(filename) as f:
+                self.code.append(f.read())
 
-    def append (new_data (* void))
-        = new_element (List)
-        = new_element->data new_data
-        while (isnt @next NULL)
-            = @ @next
-        = @next new_element
-''')
+    def parse_code(self):
+        for c in self.code:
+            self.code_ast.extend(parse(c))
 
-std_code.append('''
-typedef String_t (* char)
-obj String
-    def new (s (* char))
-        = @ (malloc (+ (strlen s) 1))
-        strcpy [@] s
+    def expand_macros(self):
+        self.post_macro_ast = expand_macros(self.code_ast)
 
-    def die
-        free @
-''')
+    def extract_types(self):
+        print(self.post_macro_ast)
+        for statement_ast in self.post_macro_ast:
+            head = statement_ast[0]
+            if head == 'obj':
+                #self.extract_object_fields(statement_ast)
+                #self.extract_object_methods(statement_ast)
+                pass
+            elif head == 'def':
+                _, func_name, args, return_type, *_ = statement_ast
+                #if isinstance(return_type, str):
+                    #return_type = [return_type]
+                #register_function(func_name, args, return_type)
+                pass
+
 
 if __name__ == '__main__':
+    #script_name, input_filename = argv
+    #pc = PrefixCompiler()
+    #pc.add_file(input_filename)
+    #pc.compile_code()
     main()
 
