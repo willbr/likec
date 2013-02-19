@@ -1352,28 +1352,38 @@ infix_operators = '''
 for o in infix_operators:
     compile_functions[o] = functools.partial(compile_infix, o)
 
+###########################################################
+
+Function = collections.namedtuple('Function',
+        [ 
+            'name',
+            'arguments',
+            'return_type',
+            ])
 
 class PrefixCompiler:
     input_files = []
     code = []
 
+    main_code = []
+    main_defined = False
+
     code_ast = []
     post_macro_ast = []
+
+    functions = {}
+    objects = collections.defaultdict(dict)
 
     def __init__(self):
         self.add_file('standard_code.likec')
 
-    def compile_code(self, output_filename=None):
-        if output_filename == None:
-            print('stdout')
-        else:
-            print('write to file')
-
+    def compile_code(self):
         self.read_files()
         self.parse_code()
         self.expand_macros()
-        self.extract_types()
-
+        self.extract_type_information()
+        self.compile_statements()
+        self.compile_main()
 
     def add_file(self, filename):
         self.input_files.append(filename)
@@ -1390,26 +1400,85 @@ class PrefixCompiler:
     def expand_macros(self):
         self.post_macro_ast = expand_macros(self.code_ast)
 
-    def extract_types(self):
-        print(self.post_macro_ast)
+    def extract_type_information(self):
         for statement_ast in self.post_macro_ast:
             head = statement_ast[0]
             if head == 'obj':
-                #self.extract_object_fields(statement_ast)
-                #self.extract_object_methods(statement_ast)
-                pass
+                self.register_object(statement_ast)
             elif head == 'def':
-                _, func_name, args, return_type, *_ = statement_ast
-                #if isinstance(return_type, str):
-                    #return_type = [return_type]
-                #register_function(func_name, args, return_type)
-                pass
+                self.register_function(statement_ast)
 
+    def register_function(self, ast):
+        _, function_name, args, raw_return_type, *_ = ast
+        return_type = parse_type(raw_return_type)
+
+        if function_name in self.functions:
+            raise SyntaxError('Can\'t redefine keyword: %s' % function_name)
+        if function_name in functions:
+            raise SyntaxError('function redefined: %s' % function_name)
+        else:
+            self.functions[function_name] = Function(
+                    function_name,
+                    args,
+                    return_type)
+
+    def register_object(self, ast):
+        _, obj_name, *body = ast
+
+        for exp in body:
+            if exp[0] == 'def':
+                self.register_method(obj_name, exp)
+            else:
+                self.register_field(obj_name, exp)
+
+    def register_method(self, object_name, exp):
+        pass
+
+    def register_field(self, object_name, exp):
+        field_name, field_type = exp
+        if field_name in self.objects[object_name]:
+            raise SyntaxError('field redefined: %s.%s' % (object_name, field_name))
+        self.objects[object_name][field_name] = field_type
+
+    def compile_statement(self, statement):
+        pass
+
+    def compile_statements(self):
+        for branch in self.post_macro_ast:
+            if branch[0] in ['def', 'obj', 'typedef']:
+                cs = self.compile_statement(branch)
+                if cs:
+                    self.compiled_functions.append(cs)
+            else:
+                self.main_code.append(branch)
+
+    def compile_main(self):
+        if self.main_defined and self.main_code:
+            lines_str = ('\n'.join(str(l) for l in main_lines))
+            raise SyntaxError('expressions found outside of main function:\n%s' % lines_str)
+
+        if self.main_code[-1][0] != 'return':
+            self.main_code.append(['return', '0'])
+
+        compile_def ('main',
+                ['argc', 'int', 'argv', ['CArray', '*', 'char']],
+                'int',
+                *self.main_code)
+
+    def compile_def(self, name, args, return_type, *body):
+        pass
+
+
+def parse_type(type_expression):
+    if isinstance(type_expression, str):
+        return [type_expression]
+    else:
+        return type_expression
 
 if __name__ == '__main__':
-    #script_name, input_filename = argv
-    #pc = PrefixCompiler()
-    #pc.add_file(input_filename)
-    #pc.compile_code()
-    main()
+    script_name, input_filename = argv
+    pc = PrefixCompiler()
+    pc.add_file(input_filename)
+    pc.compile_code()
+    #main()
 
