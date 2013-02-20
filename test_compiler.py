@@ -1,5 +1,6 @@
 import unittest
 import prefix_compiler
+from prefix_compiler import Compiler
 
 class TestPrefixCompiler(unittest.TestCase):
 
@@ -35,15 +36,36 @@ def hyphen-test
         self.assertEqual(
                 prefix_compiler.compile_each('i', ['range', '5'],
                     ['prn', 'i']),
-                ['for (i = 0; i < 5; i += 1) {',['printf("%d\\n", i);'], '}']
+                [
+                    'for (i = 0; i < 5; i += 1) {',
+                    [
+                        'printf("%d\\n", i);',
+                        ],
+                    '}',
+                    ]
                 )
 
-    def test_compile_each_list(self):
-        compile_code ('= a (List 1 2)')
+    def test_compile_each_list_variable(self):
+        c = Compiler()
+        c.add_standard_code()
+        c.read_files()
+        c.parse_code()
+        c.extract_type_information()
+        c.compile_assignment(
+                'a',
+                ['List', '1', '2'],
+                )
         self.assertEqual(
-                prefix_compiler.compile_each('i', 'a',
+                c.compile_each('i', 'a',
                     ['prn', 'i']),
-                ['for (i = 0; i < 5; i += 1) {',['printf("%d\\n", i);'], '}']
+                [
+                    'for ((List__iterator1000 = a); (List__iterator1000->next != NULL); (List__iterator1000 = List__iterator1000->next)) {',
+                    [
+                        'i = (*(Int_t *)(List__iterator1000->next->data));',
+                        'printf("%d\\n", i);',
+                        ],
+                    '}',
+                ]
                 )
 
 if __name__ == '__main__':

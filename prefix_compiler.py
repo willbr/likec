@@ -1383,7 +1383,6 @@ class Compiler:
     global_code = []
 
     code_ast = []
-    post_macro_ast = []
 
     typedefs = []
 
@@ -1398,18 +1397,44 @@ class Compiler:
     function_declarations = []
     function_calls = []
 
-
     enviroment_stack = [collections.OrderedDict()]
+
+    genvar_counter = 1000
 
     def __init__(self):
         self.code_compile_functions = {
                 'def': self.compile_def,
+                '='  : self.compile_assignment,
+                '->': self.compile_indirect_component,
+                'deref': self.compile_deref,
+                'cast': self.compile_cast,
+                'pr': self.compile_print,
+                'prn': functools.partial(
+                    self.compile_print,
+                    end='\\n',
+                    ),
                 }
+
+        infix_operators = '''
+        + - * /
+        == !=
+        += -=
+        *= /=
+        < >
+        <= >=
+        '''.split()
+
+
+        for op in infix_operators:
+            self.code_compile_functions[op] = functools.partial(
+                    compile_infix,
+                    op,
+                    )
 
     def compile(self):
         self.read_files()
         self.parse_code()
-        self.expand_macros()
+        self.code_ast = expand_macros(self.code_ast)
         self.extract_type_information()
         self.compile_statements()
         self.compile_main()
@@ -1430,11 +1455,8 @@ class Compiler:
         for c in self.code:
             self.code_ast.extend(parse(c))
 
-    def expand_macros(self):
-        self.post_macro_ast = expand_macros(self.code_ast)
-
     def extract_type_information(self):
-        for statement_ast in self.post_macro_ast:
+        for statement_ast in self.code_ast:
             head = statement_ast[0]
             if head == 'obj':
                 self.register_object(statement_ast)
@@ -1474,7 +1496,7 @@ class Compiler:
         self.objects[object_name][field_name] = field_type
 
     def compile_statements(self):
-        for branch in self.post_macro_ast:
+        for branch in self.code_ast:
             if branch[0] in ['def', 'obj', 'typedef']:
                 cs = self.compile_statement(branch)
                 if cs:
@@ -1612,13 +1634,16 @@ class Compiler:
         else:
             return v
 
+    def compile_constructor(self, object_name, *args):
+        if object_name == 'Array':
+            return self.compile_array(*args)
+        else:
+            return self.compile_new(object_name, *args)
+
     def compile_call(self, function_name, *args):
         #print('call', function_name, args)
         if is_obj(function_name):
-            if name == 'Array':
-                return self.compile_array(*args)
-            else:
-                return self.compile_new(function_name, *args)
+            self.compile_constructor(function_name, *args)
         else:
             try:
                 vt = self.variable_type(function_name)
@@ -1720,6 +1745,355 @@ class Compiler:
                 eo = expand_object(var_type)
                 #print('cv', var_type, eo)
                 return '%s %s' % (eo, name)
+
+    def compile_assignment(self, lvalue, rvalue):
+        lines = []
+        post_lines = []
+
+        if is_obj_constructor(rvalue):
+            obj_type, *args = rvalue
+            if obj_type == 'List':
+                rvalue = rvalue[:1]
+                for arg in args:
+                    post_lines.append(['method', lvalue, 'append', arg])
+            elif obj_type == 'Array':
+                #print(lvalue, rvalue)
+                self.declare(lvalue, rvalue)
+                rvalue = None
+
+        if rvalue:
+            et = self.expression_type(rvalue)
+            self.declare(lvalue, et)
+
+            lines.insert(0, '(%s = %s)' % (
+                self.expand_variable(lvalue),
+                self.compile_expression(rvalue)))
+
+            for line in post_lines:
+                lines.append(self.compile_expression(line))
+
+        if len(lines) == 1:
+            return lines[0]
+        else:
+            return lines
+
+    def expression_type(self, exp):
+        if isinstance(exp, str):
+            if exp in ['true', 'false']:
+                return ['Bool']
+            elif exp == 'NULL':
+                return ['*']
+
+            c = exp[0]
+            if c == '"':
+                return ['*', 'Char']
+            elif c == '\'':
+                return ['Char']
+            elif c == '{':
+                return ['[]']
+            elif self.in_scope(exp):
+                return self.variable_type(exp)
+            else:
+                #print(exp)
+                return ['Int',]
+        else:
+            #print(exp)
+            head, *tail = exp
+            if head == 'CArray':
+                return ['[]'] + self.expression_type(tail[0])
+            elif head == 'cast':
+                return tail[0]
+            elif is_obj(head):
+                return ['*', head]
+            elif is_infix_operator(head):
+                return self.expression_type(tail[0])
+            elif head == 'sizeof':
+                return ['size_t']
+            elif head == '->':
+                obj, field = tail
+                return self.field_type(obj, field)
+            elif head == 'deref':
+                et = self.expression_type(tail[0])
+                if et[0] == '*':
+                    return [et[1]]
+                elif et[0] == 'Array':
+                    return ['[]', et[2]]
+                else:
+                    raise TypeError('tried to deref an expression that isn\'t a pointer', et)
+            elif head in ['inc', 'dec', 'post_inc', 'post_dec']:
+                return self.expression_type(tail[0])
+            elif head == '_qm_':
+                return self.expression_type(tail[1])
+            elif head == 'range':
+                return self.expression_type(tail[0])
+            elif head == 'not':
+                return self.expression_type(tail[0])
+            elif head in ['map', 'filter']:
+                return ['*', 'List']
+            elif head in 'reduce':
+                return self.expression_type(tail[0])
+            elif head in 'car':
+                try:
+                    return tail[1]
+                except IndexError:
+                    pass
+                return ['*', 'void']
+            elif head in 'fn':
+                return tail[1]
+            else:
+                if head in functions:
+                    return self.functions[head][1]
+                else:
+                    f = self.lookup_library_function(head)
+                    if f:
+                        args, return_type = f
+                        return return_type
+                raise TypeError(exp)
+
+
+    def declare(self, lvalue, var_type, var_scope='local'):
+        root = root_variable(lvalue)
+        if not self.in_scope(root):
+            if is_deref(lvalue):
+                raise SyntaxError('dereferenced before assignment: %s : %s' % (root, lvalue))
+            s = self.current_scope()
+            s[root] = [var_type, var_scope]
+
+
+    def in_scope(self, name):
+        name = root_variable(name)
+        return name in self.current_scope()
+
+    def current_scope(self):
+        return self.enviroment_stack[-1]
+
+    def compile_new(self, obj, *args):
+        return self.compile_method(obj, 'new', 'NULL', *args)
+
+    def compile_method(self, obj, method, *args):
+        #print(obj, method, args)
+        if is_obj(obj):
+            return '%s__%s(%s)' % (obj, method, self.compile_arguments(*args))
+        else:
+            if method == 'append':
+                new_args = []
+                for arg in args:
+                    new_args.append(self.make_constructor(arg))
+            else:
+                new_args = args
+
+
+            obj_type = self.variable_type(obj)[1]
+            return '%s__%s(%s)' % (
+                    obj_type,
+                    method,
+                    self.compile_arguments(obj, *new_args),
+                    )
+
+    def compile_arguments(self, *args):
+        return ', '.join(self.compile_expression(a) for a in args)
+
+    def compile_each(self, bind_expression, list_expression, *body):
+        bind_name, bind_type = compile_bind(bind_expression)
+        head, *tail = list_expression
+        et = self.expression_type(list_expression)
+        if head == 'range':
+            start, end, step = self.compile_range(*tail)
+            self.declare(bind_name, bind_type)
+            init = '%s = %s' % (bind_name, start)
+            cond = '%s < %s' % (
+                    bind_name,
+                    self.compile_expression(end),
+                    )
+            step = '%s += %s' % (bind_name, step)
+            for_header = '; '.join((init, cond, step))
+            return [
+                    'for (%s) {' % for_header,
+                    self.compile_block(body),
+                    '}']
+        elif head == 'list':
+            # new list
+            # assign to temp variable
+            # then compile for
+            raise NotImplemented
+        elif et == ['*', 'List']:
+            list_name = list_expression
+            iterator_name = self.genvar('List', 'iterator')
+            self.declare(iterator_name, ['*', 'List'])
+            self.declare(bind_name, bind_type)
+            init = ['=', iterator_name, list_name]
+            cond = ['!=', ['->',iterator_name,'next'], 'NULL']
+            step = ['=', iterator_name, ['->',iterator_name,'next']]
+            bind = ['=', bind_name,
+                    ['deref', ['cast', ['*'] + bind_type,
+                        ['->', ['->', iterator_name, 'next'],
+                            'data']]]]
+            #print(init)
+            #print(cond)
+            #print(step)
+            #print(bind)
+            #pp(body)
+            return self.compile_for(init, cond, step, bind, *body)
+        else:
+            raise NotImplemented
+
+
+    def genvar(self, *args):
+        x = '__'.join(args)
+        if x:
+            r = '%s%d' % (x, self.genvar_counter)
+        else:
+            r = 'G%d' % self.genvar_counter
+        self.genvar_counter += 1
+        return r
+
+    def compile_for(self, a, b, c, *body):
+        #print('for',a,b,c)
+        if b == 'in':
+            if c[0] == 'range':
+                start, end, step = self.compile_range(*c[1:])
+                self.declare(a, 'int')
+                init = '%s = %s' % (a, start)
+                cond = '%s < %s' % (a, self.compile_expression(end))
+                step = '%s += %s' % (a, step)
+                for_header = '; '.join((init, cond, step))
+                return [
+                        'for (%s) {' % for_header,
+                        self.compile_block(body),
+                        '}']
+            else:
+                et = self.expression_type(c)
+                if et == ['*', 'List']:
+                    return self.compile_for_in_list(a[0], a[1], c, *body)
+                c__i = self.genvar(c + '__i')
+                c__limit = self.genvar(c + '__limit')
+
+                self.compile_assignment(c__i, '0')
+                self.compile_assignment(c__limit, ['/',
+                    ['sizeof', c],
+                    ['sizeof', ['array-offset', c, '0']]])
+
+                c_element_type = scope_stack[-1][c][1][1:]
+                self.declare(a, self.default_value(c_element_type))
+
+                init = self.compile_expression(['=', c__i, '0'])
+                cond = '%s < %s' % (c__i, c__length)
+                step = '%s += 1' % c__i
+
+            return [
+                    'for (%s) {' % '; '.join((init, cond, step)),
+                    ['%s = %s[%s];' % (a, c, c__i)] +
+                    self.compile_block(body),
+                    '}'
+                    ]
+        else:
+            init = self.compile_expression(a)
+            cond = self.compile_expression(b)
+            step = self.compile_expression(c)
+            #print(init)
+            #print(cond)
+            #print(step)
+            for_header = '; '.join((init, cond, step))
+            return [
+                    'for (%s) {' % for_header,
+                    self.compile_block(body),
+                    '}']
+
+    def compile_indirect_component(self, *args):
+        return '->'.join(self.compile_expression(a) for a in args)
+
+
+    def compile_print(self,
+            msg=None,
+            end='',
+            ):
+        #print('compile_print', msg, end)
+        args = []
+        if msg == None:
+            format_msg = ''
+        elif msg[0] == '"':
+            msg = remove_quotes(msg)
+            stack = list(filter(None, re.split('({{|{.+?}|}})', msg)[::-1]))
+            #print(stack)
+            parsed = []
+            while stack:
+                s = stack.pop()
+                if s in ['{{', '}}']:
+                    parsed.append(s)
+                elif s[0] == '{':
+                    contents = s[1:-1]
+                    exp, format_exp = split_format_block(contents)
+
+                    if exp[0] in ['(', '[']:
+                        exp_ast = parse(exp)[0]
+                        et = expression_type(exp_ast)
+                    else:
+                        variable_name = escape(exp)
+                        et = variable_type(variable_name)
+                        exp_ast = variable_name
+
+                    if et == ['*', 'String']:
+                        args.append(compile_deref(exp_ast))
+                        format_exp = '%s'
+                    else:
+                        args.append(compile_expression(exp_ast))
+
+                    parsed.append(format_exp)
+                else:
+                    parsed.append(s)
+            format_msg = ''.join(parsed)
+        else:
+            ce_msg = compile_expression(msg)
+            et = expression_type(msg)
+            if et == ['*', 'String']:
+                args.append(compile_deref(msg))
+            else:
+                args.append(ce_msg)
+            format_msg = '%%%s' % default_format_exp(ce_msg)
+
+        args.insert(0, '"%s%s"' % (format_msg, end))
+        return 'printf(%s)' % ', '.join(args)
+
+
+    def field_type(self, obj, field):
+        vt = self.variable_type(obj)
+        if is_obj_variable(vt):
+            obj_name = obj_name_from_variable_type(vt)
+            return self.objects[obj_name][field]
+        else:
+            raise TypeError('not an object', obj)
+
+    def expand_macros(self, tree):
+        if isinstance(tree, list):
+            if not tree:
+                return tree
+
+            head, *tail = tree
+
+            if isinstance(head, list):
+                pass
+            elif head in self.macro_functions:
+                tree = self.macro_functions[head](*tail)
+                return [self.expand_macros(leaf) for leaf in tree]
+            else:
+                pass
+
+            return [self.expand_macros(leaf) for leaf in tree]
+        else:
+            return tree
+
+    def compile_deref(self, *args):
+        if len(args) == 1:
+            return '(*%s)' % self.compile_arguments(*args)
+        else:
+            return self.compile_array_offset(*args)
+
+    def compile_cast(self, typ, exp):
+        #print('cast', typ, exp)
+        return '(%s)(%s)' % (
+                self.compile_variable('', typ),
+                self.compile_expression(exp),
+                )
 
 
 def parse_type(type_expression):
