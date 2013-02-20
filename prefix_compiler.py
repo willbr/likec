@@ -1355,7 +1355,9 @@ for o in infix_operators:
 ###########################################################
 
 class Function:
-    compiled_code = None
+    compiled_body = None
+    compiled_header = None
+    is_method = False
 
     def __init__(self,
             name,
@@ -1365,6 +1367,14 @@ class Function:
         self.name = name
         self.arguments = arguments
         self.return_type = return_type
+
+    def compiled(self):
+        return [
+                self.compiled_header,
+                '{',
+                self.compiled_body,
+                '}',
+                ]
 
 class Compiler:
     input_files = []
@@ -1388,13 +1398,13 @@ class Compiler:
     function_declarations = []
     function_calls = []
 
-    code_compile_functions = {}
 
     enviroment_stack = [collections.OrderedDict()]
 
     def __init__(self):
-        #self.add_file('standard_code.likec')
-        pass
+        self.code_compile_functions = {
+                'def': self.compile_def,
+                }
 
     def compile(self):
         self.read_files()
@@ -1404,6 +1414,9 @@ class Compiler:
         self.compile_statements()
         self.compile_main()
         self.write_output()
+
+    def add_standard_code(self):
+        self.add_file('standard_code.likec')
 
     def add_file(self, filename):
         self.input_files.append(filename)
@@ -1534,19 +1547,14 @@ class Compiler:
                         return_type,
                         )
 
-                f.compiled_code = [
-                        function_header + ' {',
-                        new_body,
-                        '}']
+                f.compiled_header = function_header
+                f.compiled_body = new_body
 
                 self.functions['main'] = f
         else:
-            self.function_declarations.append(function_header)
-            self.functions_declared.add(function_name)
-            return [
-                    function_header + ' {',
-                    new_body,
-                    '}']
+            f = self.functions[function_name]
+            f.compiled_header = function_header
+            f.compiled_body = new_body
 
     def compile_variable_declarations(self):
         declarations = []
@@ -1605,6 +1613,7 @@ class Compiler:
             return v
 
     def compile_call(self, function_name, *args):
+        #print('call', function_name, args)
         if is_obj(function_name):
             if name == 'Array':
                 return self.compile_array(*args)
@@ -1629,6 +1638,15 @@ class Compiler:
         except KeyError:
             raise SyntaxError('main funciton not defined & no global code')
 
+        functions = []
+        methods = []
+
+        for k, v in self.functions.items():
+            if v.is_method:
+                methods.append(v)
+            else:
+                functions.append(v)
+
         if self.typedefs:
             for t in typedefs:
                 indent(t)
@@ -1643,15 +1661,15 @@ class Compiler:
 
         print()
 
-        for md in self.compiled_methods:
-            indent(md)
+        for m in methods:
+            indent(m.compiled())
             print()
 
-        for s in self.compiled_functions:
-            indent(s)
+        for f in functions:
+            indent(f.compiled())
             print()
 
-        indent(main_function.compiled_code)
+        indent(main_function.compiled())
         print()
 
 
@@ -1713,6 +1731,7 @@ def parse_type(type_expression):
 if __name__ == '__main__':
     script_name, input_filename = argv
     pc = Compiler()
+    #pc.add_standard_code()
     pc.add_file(input_filename)
     pc.compile()
     #main()
