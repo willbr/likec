@@ -1,20 +1,23 @@
 @echo off
 
 if "%1"=="" (
-    call :compile almost.c
+    call :default
 ) else (
     call :%1 %2
 )
-exit /b
+exit /b %ERRORLEVEL%
 
+:default
+    call :compile almost.c
+    exit /b %ERRORLEVEL%
 
 :c
 :compile
-    python prefix_compiler.py %1
+    python -tt prefix_compiler.py %1
     exit /b %ERRORLEVEL%
 
 :test
-    python -m unittest discover
+    python -tt -m unittest discover
     exit /b %ERRORLEVEL%
 
 :g
@@ -29,11 +32,11 @@ exit /b
 
 :p
 :parse
-    python prefix_parser.py %1
+    python -tt prefix_parser.py %1
     exit /b %ERRORLEVEL%
 
 :t
 :tokens
-    python prefix_tokenizer.py %1
+    python -tt prefix_tokenizer.py %1
     exit /b %ERRORLEVEL%
 
