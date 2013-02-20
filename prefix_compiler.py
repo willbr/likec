@@ -1354,36 +1354,56 @@ for o in infix_operators:
 
 ###########################################################
 
-Function = collections.namedtuple('Function',
-        [ 
-            'name',
-            'arguments',
-            'return_type',
-            ])
+class Function:
+    compiled_code = None
 
-class PrefixCompiler:
+    def __init__(self,
+            name,
+            arguments,
+            return_type,
+            ):
+        self.name = name
+        self.arguments = arguments
+        self.return_type = return_type
+
+class Compiler:
     input_files = []
     code = []
 
-    main_code = []
-    main_defined = False
+    global_code = []
 
     code_ast = []
     post_macro_ast = []
 
+    typedefs = []
+
+    structures = {}
     functions = {}
     objects = collections.defaultdict(dict)
 
-    def __init__(self):
-        self.add_file('standard_code.likec')
+    compiled_methods = []
+    compiled_functions = []
+    compiled_main_function = []
 
-    def compile_code(self):
+    function_declarations = []
+    function_calls = []
+
+    code_compile_functions = {}
+
+    enviroment_stack = [collections.OrderedDict()]
+
+    def __init__(self):
+        #self.add_file('standard_code.likec')
+        pass
+
+    def compile(self):
         self.read_files()
         self.parse_code()
         self.expand_macros()
         self.extract_type_information()
         self.compile_statements()
         self.compile_main()
+        self.write_output()
 
     def add_file(self, filename):
         self.input_files.append(filename)
@@ -1440,9 +1460,6 @@ class PrefixCompiler:
             raise SyntaxError('field redefined: %s.%s' % (object_name, field_name))
         self.objects[object_name][field_name] = field_type
 
-    def compile_statement(self, statement):
-        pass
-
     def compile_statements(self):
         for branch in self.post_macro_ast:
             if branch[0] in ['def', 'obj', 'typedef']:
@@ -1450,23 +1467,241 @@ class PrefixCompiler:
                 if cs:
                     self.compiled_functions.append(cs)
             else:
-                self.main_code.append(branch)
+                self.global_code.append(branch)
 
     def compile_main(self):
-        if self.main_defined and self.main_code:
+        if 'main' in self.functions and self.global_code:
             lines_str = ('\n'.join(str(l) for l in main_lines))
             raise SyntaxError('expressions found outside of main function:\n%s' % lines_str)
 
-        if self.main_code[-1][0] != 'return':
-            self.main_code.append(['return', '0'])
+        if self.global_code[-1][0] != 'return':
+            self.global_code.append(['return', '0'])
 
-        compile_def ('main',
+        self.compile_def ('main',
                 ['argc', 'int', 'argv', ['CArray', '*', 'char']],
                 'int',
-                *self.main_code)
+                *self.global_code)
 
-    def compile_def(self, name, args, return_type, *body):
-        pass
+    def compile_statement(self, statement):
+        c = self.compile_expression(statement)
+        if isinstance(c, str):
+            if c[0] + c[-1] == '()':
+                return c[1:-1] + ';'
+            else:
+                return c + ';'
+        else:
+            return c
+
+    def compile_expression(self, statements):
+        #print('exp', statements)
+        if isinstance(statements, str):
+            return self.expand_variable(statements)
+        else:
+            func_name, *args = statements
+            if func_name in self.code_compile_functions.keys():
+                return self.code_compile_functions[func_name](*args)
+            else:
+                return self.compile_call(func_name, *args)
+
+
+    def compile_def(self,
+            function_name,
+            args,
+            return_type,
+            *body
+            ):
+        call_sig = '{}({})'.format(
+            function_name,
+            self.compile_def_arguments(args))
+
+        if function_name == 'main':
+            if body[-1][0] != 'return':
+                body = list(body)
+                body.append(['return', '0'])
+
+        compiled_body = self.compile_block(body)
+        new_body = self.compile_variable_declarations() + compiled_body
+
+        function_header = self.compile_variable(call_sig, return_type)
+
+        if function_name == 'main':
+            if 'main' in self.functions:
+                raise NameError('main is defined twice')
+            else:
+                f = Function(
+                        'main',
+                        args,
+                        return_type,
+                        )
+
+                f.compiled_code = [
+                        function_header + ' {',
+                        new_body,
+                        '}']
+
+                self.functions['main'] = f
+        else:
+            self.function_declarations.append(function_header)
+            self.functions_declared.add(function_name)
+            return [
+                    function_header + ' {',
+                    new_body,
+                    '}']
+
+    def compile_variable_declarations(self):
+        declarations = []
+        s = self.enviroment_stack[-1]
+        #pp(s)
+        for lvalue, value in sorted(s.items()):
+            var_type, var_scope = value
+            #print(lvalue, var_type, var_scope)
+            if var_scope == 'local':
+                l = self.compile_variable(lvalue, var_type)
+                r = self.default_value(var_type)
+                declarations.append('%s = %s;' % (l, r))
+        return declarations
+
+    def compile_def_arguments(self, arguments):
+        paired_args = [(n, t) for n, t in grouper(2, arguments)]
+        for n, t in paired_args:
+            declare(n, t, 'argument')
+        return ', '.join(self.compile_variable(n, t) for n, t in paired_args)
+
+    def compile_block(self, block):
+        lines = []
+        r = (self.compile_statement(line) for line in block)
+        for e in r:
+            if isinstance(e, str):
+                lines.append(e)
+            elif isinstance(e, list):
+                for a in e: 
+                    if isinstance(a, list):
+                        lines.append(a)
+                    else:
+                        if a[-1] in '{}:':
+                            lines.append(a)
+                        else:
+                            lines.append(a + ';')
+        return lines
+
+    def variable_type(self, name):
+        s = self.enviroment_stack[-1]
+        var_type, _ = s[name]
+        return var_type
+
+    def expand_variable(self, v):
+        if isinstance(v, list):
+            head, *tail = v
+            if head == 'deref':
+                if len(tail) == 1:
+                    return '(*%s)' % self.expand_variable(*tail)
+                else:
+                    return self.compile_array_offset(*tail)
+            elif head == '->':
+                return '%s' % '->'.join(tail)
+            else:
+                raise ValueError(v)
+        else:
+            return v
+
+    def compile_call(self, function_name, *args):
+        if is_obj(function_name):
+            if name == 'Array':
+                return self.compile_array(*args)
+            else:
+                return self.compile_new(function_name, *args)
+        else:
+            try:
+                vt = self.variable_type(function_name)
+                return self.compile_method(function_name, *args)
+            except KeyError:
+                pass
+            compiled_args = [self.compile_expression(a) for a in args]
+            self.function_calls.append(function_name)
+            return '%s(%s)' % (function_name, ', '.join(compiled_args))
+
+    def write_output(self):
+        print_includes()
+        print()
+
+        try:
+            main_function = self.functions.pop('main')
+        except KeyError:
+            raise SyntaxError('main funciton not defined & no global code')
+
+        if self.typedefs:
+            for t in typedefs:
+                indent(t)
+            print()
+
+        for s in self.structures:
+            indent(s)
+            print()
+
+        for fd in self.function_declarations:
+            print (fd + ';')
+
+        print()
+
+        for md in self.compiled_methods:
+            indent(md)
+            print()
+
+        for s in self.compiled_functions:
+            indent(s)
+            print()
+
+        indent(main_function.compiled_code)
+        print()
+
+
+    def compile_variable(self,
+            name,
+            var_type
+            ):
+        #print('compile_variable', name or 'no-name', var_type)
+        if isinstance(var_type, list):
+            l = []
+            r = []
+
+            if var_type[0] == 'cast':
+                type_stack = var_type[1][::-1]
+            elif var_type[0] == 'Array':
+                type_stack = var_type[:3][::-1]
+            else:
+                type_stack = var_type[::-1]
+
+            l = [expand_object(type_stack.pop(0))]
+
+            if name:
+                r.append(name)
+
+            while type_stack:
+                t = type_stack.pop()
+                if t == '*':
+                    r.insert(0, t)
+                elif t == 'CArray':
+                    r.append('[]')
+                elif t == 'Array':
+                    # + 1 because element 0 is length
+                    size = int(type_stack.pop()) + 1
+                    r.append('[%s]' % size)
+                    break
+                else:
+                    raise TypeError(name, t)
+                if len(r) > 1:
+                    r.insert(0, '(')
+                    r.append(')')
+                #print(l, r)
+            return '%s %s' % (''.join(l), ''.join(r))
+        else:
+            #print(name, var_type)
+            if name == '':
+                return expand_object(var_type)
+            else:
+                eo = expand_object(var_type)
+                #print('cv', var_type, eo)
+                return '%s %s' % (eo, name)
 
 
 def parse_type(type_expression):
@@ -1477,8 +1712,8 @@ def parse_type(type_expression):
 
 if __name__ == '__main__':
     script_name, input_filename = argv
-    pc = PrefixCompiler()
+    pc = Compiler()
     pc.add_file(input_filename)
-    pc.compile_code()
+    pc.compile()
     #main()
 
