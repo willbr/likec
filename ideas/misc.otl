@@ -1,3 +1,37 @@
+review standard code for cdr
+
+I think the ternary if statement is redundant.
+
+sould just return: l->next
+
+def cdr (l (* List))
+    return l->next
+
+;;;;
+
+parser; parse arguments into pairs
+
+def add (a int b int)
+=>
+(def add ((a int) (b int))
+
+;;;;
+
+parser; parse types parens
+
+move parsing types into lists from compiler into parser
+
+each (n int) (List 1 2 3)
+=>
+each (n (int)) (List 1 2 3)
+
+
+cast int 1
+=>
+(cast (int) 1)
+
+;;;;
+
 add list functions
 
 reverse
@@ -288,3 +322,8 @@ call List method repr
 ;;;;
 
 add logging
+
+;;;;
+
+perform a code review of this project
+
