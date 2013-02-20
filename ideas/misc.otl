@@ -1,3 +1,13 @@
+mark functions as called and only include those in the output
+
+;;;;
+
+Linus says Typedef is probably bad
+
+remove Object Structure typedefs
+
+;;;;
+
 review standard code for cdr
 
 I think the ternary if statement is redundant.
