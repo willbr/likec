@@ -1377,31 +1377,31 @@ class Function:
                 ]
 
 class Compiler:
-    input_files = []
-    code = []
-
-    global_code = []
-
-    code_ast = []
-
-    typedefs = []
-
-    structures = {}
-    functions = {}
-    objects = collections.defaultdict(dict)
-
-    compiled_methods = []
-    compiled_functions = []
-    compiled_main_function = []
-
-    function_declarations = []
-    function_calls = []
-
-    enviroment_stack = [collections.OrderedDict()]
-
-    genvar_counter = 1000
 
     def __init__(self):
+        self.input_files = []
+        self.code = []
+
+        self.global_code = []
+
+        self.code_ast = []
+
+        self.typedefs = []
+
+        self.structures = {}
+        self.functions = {}
+        self.objects = collections.defaultdict(dict)
+
+        self.compiled_methods = []
+        self.compiled_functions = []
+        self.compiled_main_function = []
+
+        self.function_declarations = []
+        self.function_calls = []
+
+        self.enviroment_stack = [collections.OrderedDict()]
+
+        self.genvar_counter = 1000
         self.code_compile_functions = {
                 'def': self.compile_def,
                 '='  : self.compile_assignment,
@@ -1413,6 +1413,7 @@ class Compiler:
                     self.compile_print,
                     end='\\n',
                     ),
+                'method': self.compile_method,
                 }
 
         infix_operators = '''
@@ -1528,7 +1529,6 @@ class Compiler:
             return c
 
     def compile_expression(self, statements):
-        #print('exp', statements)
         if isinstance(statements, str):
             return self.expand_variable(statements)
         else:
@@ -1641,9 +1641,8 @@ class Compiler:
             return self.compile_new(object_name, *args)
 
     def compile_call(self, function_name, *args):
-        #print('call', function_name, args)
         if is_obj(function_name):
-            self.compile_constructor(function_name, *args)
+            return self.compile_constructor(function_name, *args)
         else:
             try:
                 vt = self.variable_type(function_name)
@@ -1871,7 +1870,7 @@ class Compiler:
         return self.compile_method(obj, 'new', 'NULL', *args)
 
     def compile_method(self, obj, method, *args):
-        #print(obj, method, args)
+        #print('method', obj, method, args)
         if is_obj(obj):
             return '%s__%s(%s)' % (obj, method, self.compile_arguments(*args))
         else:
@@ -1891,7 +1890,13 @@ class Compiler:
                     )
 
     def compile_arguments(self, *args):
-        return ', '.join(self.compile_expression(a) for a in args)
+        new_args = []
+        #print('args', args)
+        for a in args:
+            new_args.append(self.compile_expression(a))
+            #print(a, '=>',  new_args[-1])
+
+        return ', '.join(new_args)
 
     def compile_each(self, bind_expression, list_expression, *body):
         bind_name, bind_type = compile_bind(bind_expression)
@@ -2095,6 +2100,43 @@ class Compiler:
                 self.compile_expression(exp),
                 )
 
+    def make_constructor(self, arg):
+        et = self.expression_type(arg)
+        if isinstance(et, list) and len(et) == 1:
+            return [et[0], arg]
+        else:
+            return ['make_ctype', et, arg]
+
+    def default_value(self, type_list):
+        #print(type_list)
+        if isinstance(type_list, list):
+            if type_list[0] == 'cast':
+                t = type_list[1][0]
+            else:
+                t = type_list[0]
+        else:
+            t = type_list
+
+        if t == 'int':
+            return '0'
+        elif t == 'float':
+            return '0.0'
+        elif t == '*':
+            return 'NULL'
+        elif t == '[]':
+            return '{}'
+        elif t == 'size_t':
+            return '0'
+        elif t == 'Int':
+            return '0'
+        elif t == 'List':
+            return 'NULL'
+        elif t == 'Array':
+            return '{%s}' % ', '.join([type_list[1]] + type_list[3:])
+        elif t == 'Char':
+            return r"'\0'"
+        else:
+            raise TypeError(t, type_list)
 
 def parse_type(type_expression):
     if isinstance(type_expression, str):

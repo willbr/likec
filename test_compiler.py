@@ -4,6 +4,14 @@ from prefix_compiler import Compiler
 
 class TestPrefixCompiler(unittest.TestCase):
 
+    def setUp(self):
+        c = Compiler()
+        c.add_standard_code()
+        c.read_files()
+        c.parse_code()
+        c.extract_type_information()
+        self.compiler = c
+
     def test_parse(self):
         self.assertEqual(
                 prefix_compiler.parse('''
@@ -46,11 +54,7 @@ def hyphen-test
                 )
 
     def test_compile_each_list_variable(self):
-        c = Compiler()
-        c.add_standard_code()
-        c.read_files()
-        c.parse_code()
-        c.extract_type_information()
+        c = self.compiler
         c.compile_assignment(
                 'a',
                 ['List', '1', '2'],
