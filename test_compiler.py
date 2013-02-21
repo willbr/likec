@@ -137,6 +137,24 @@ def hyphen-test
                 ]
                 )
 
+    def test_compile_for(self):
+        c = self.compiler
+        self.assertEqual(
+                c.compile_for(
+                    ['=', 'i', '0'],
+                    ['<', 'i', '5'],
+                    ['+=', 'i', '1'],
+                    ['prn', 'i'],
+                    ),
+                [
+                    'for ((i = 0); (i < 5); (i += 1)) {',
+                    [
+                        'printf("%d\\n", i);',
+                        ],
+                    '}',
+                ]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
