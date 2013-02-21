@@ -80,6 +80,29 @@ def hyphen-test
                 'List__append(a, Int__new(NULL, 3))',
                 )
 
+
+    def test_Array_constructor(self):
+        c = self.compiler
+        c.compile_assignment(
+                'a',
+                ['Array', '10', 'int'],
+                ),
+        self.assertEqual(
+                c.current_scope()['a'],
+            [['Array', '10', 'int'], 'local' ]
+                )
+
+    def test_Array_constructor_wth_initial_values(self):
+        c = self.compiler
+        a = c.compile_assignment(
+                'a',
+                ['Array', '10', 'int', '0', '1', '2'],
+                ),
+        self.assertEqual(
+                c.current_scope()['a'],
+            [['Array', '10', 'int', '0', '1', '2',], 'local' ]
+                )
+
     def test_compile_each_list_variable(self):
         c = self.compiler
         c.compile_assignment(
