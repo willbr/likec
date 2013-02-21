@@ -174,6 +174,62 @@ def hyphen-test
                 [['Int'], 'local']
                 )
 
+    def test_prn(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a 5
+prn a
+''')
+        self.assertEqual(
+                out,
+                [
+                    'a = 5;',
+                    'printf("%d\\n", a);',
+                    ]
+                )
+
+    def test_print_variable(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a 5
+pr a
+''')
+        self.assertEqual(
+                out,
+                [
+                    'a = 5;',
+                    'printf("%d", a);',
+                    ]
+                )
+
+    def test_print_with_string_formater(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a 5
+pr "{a}"
+''')
+        self.assertEqual(
+                out,
+                [
+                    'a = 5;',
+                    'printf("%d", a);',
+                    ]
+                )
+
+    def test_print_with_string_formater_arguments(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a 5
+pr "{a:+03d}"
+''')
+        self.assertEqual(
+                out,
+                [
+                    'a = 5;',
+                    'printf("%+03d", a);',
+                    ]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

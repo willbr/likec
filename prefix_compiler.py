@@ -2034,7 +2034,7 @@ class Compiler:
                         et = expression_type(exp_ast)
                     else:
                         variable_name = escape(exp)
-                        et = variable_type(variable_name)
+                        et = self.variable_type(variable_name)
                         exp_ast = variable_name
 
                     if et == ['*', 'String']:
