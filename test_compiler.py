@@ -157,12 +157,21 @@ def hyphen-test
 
     def test_compile_print(self):
         c = self.compiler
-        c.compile_assignment('a', '5')
         self.assertEqual(
                 c.compile_print(
                     'i',
                     ),
                 'printf("%d", i)'
+                )
+
+    def test_compile_code(self):
+        c = self.compiler
+        a = c.compile_code('''
+= a 5
+''')
+        self.assertEqual(
+                c.current_scope()['a'],
+                [['Int'], 'local']
                 )
 
 if __name__ == '__main__':

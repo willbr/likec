@@ -2144,6 +2144,16 @@ class Compiler:
             start = '0'
         return [start, end, step]
 
+    def compile_code(self, code):
+        ast = parse(code)
+        ast = expand_macros(ast)
+        r = []
+        for branch in ast:
+            cs = self.compile_statement(branch)
+            if cs:
+                r.append(cs)
+        return r
+
 def parse_type(type_expression):
     if isinstance(type_expression, str):
         return [type_expression]
