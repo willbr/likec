@@ -162,7 +162,7 @@ def hyphen-test
                 c.compile_print(
                     'i',
                     ),
-                'printf("%d", i);'
+                'printf("%d", i)'
                 )
 
 if __name__ == '__main__':
