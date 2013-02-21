@@ -1393,8 +1393,7 @@ class Compiler:
 
         self.code_ast = []
 
-        self.typedefs = []
-
+        self.typedefs = {}
         self.structures = {}
         self.functions = {}
         self.objects = collections.defaultdict(dict)
@@ -1411,7 +1410,10 @@ class Compiler:
         self.genvar_counter = 1000
         self.code_compile_functions = {
                 'def': self.compile_def,
+                'obj': self.compile_obj,
                 '='  : self.compile_assignment,
+                'while': self.compile_while,
+                'return': self.compile_return,
                 '->': self.compile_indirect_component,
                 'deref': self.compile_deref,
                 'cast': self.compile_cast,
@@ -1422,6 +1424,8 @@ class Compiler:
                     ),
                 'method': self.compile_method,
                 'reduce': self.compile_reduce,
+                '_qm_': self.compile_ternary,
+                'typedef': self.compile_typedef,
                 }
 
         infix_operators = '''
@@ -1502,14 +1506,40 @@ class Compiler:
     def register_object(self, ast):
         _, obj_name, *body = ast
 
+        methods = []
+
         for exp in body:
-            if exp[0] == 'def':
-                self.register_method(obj_name, exp)
+            head, *tail = exp
+            if head == 'def':
+                method_name = tail[0]
+                methods.append(method_name)
+                self.register_method(obj_name, tail)
             else:
                 self.register_field(obj_name, exp)
 
+        if 'new' not in methods:
+            self.register_method(obj_name,
+                    (
+                        'new',
+                        ['self', ['*', obj_name]],
+                        ['*', obj_name],
+                        )
+                    )
+
+        if 'die' not in methods:
+            pass
+
+
     def register_method(self, object_name, exp):
-        pass
+        method_name, args, return_type, *body = exp
+        #print(method_name, args, return_type, body)
+        function_name = '%s__%s' % (object_name, method_name)
+        #print('fnname', function_name)
+        self.functions[function_name] = Function(
+                function_name,
+                args,
+                return_type,
+                )
 
     def register_field(self, object_name, exp):
         field_name, field_type = exp
@@ -1577,6 +1607,12 @@ class Compiler:
                 body = list(body)
                 body.append(['return', '0'])
 
+        #print(
+                #function_name,
+                #args,
+                #return_type,
+                #)
+
         compiled_body = self.compile_block(body)
         new_body = self.compile_variable_declarations() + compiled_body
 
@@ -1597,7 +1633,8 @@ class Compiler:
 
                 self.functions['main'] = f
         else:
-            #print(self.functions)
+            #print('=======================')
+            #pp(self.functions)
             f = self.functions[function_name]
             f.compiled_header = function_header
             f.compiled_body = new_body
@@ -1618,7 +1655,7 @@ class Compiler:
     def compile_def_arguments(self, arguments):
         paired_args = [(n, t) for n, t in grouper(2, arguments)]
         for n, t in paired_args:
-            declare(n, t, 'argument')
+            self.declare(n, t, 'argument')
         return ', '.join(self.compile_variable(n, t) for n, t in paired_args)
 
     def compile_block(self, block):
@@ -1665,9 +1702,14 @@ class Compiler:
             return self.compile_new(object_name, *args)
 
     def compile_call(self, function_name, *args):
+        #print(
+                #function_name,
+                #*args
+                #)
         if is_obj(function_name):
             return self.compile_constructor(function_name, *args)
         else:
+            #print(function_name, function_name in self.current_scope())
             try:
                 vt = self.variable_type(function_name)
                 return self.compile_method(function_name, *args)
@@ -1678,7 +1720,7 @@ class Compiler:
             return '%s(%s)' % (function_name, ', '.join(compiled_args))
 
     def write_output(self):
-        print_includes()
+        self.print_includes()
         print()
 
         try:
@@ -1696,18 +1738,19 @@ class Compiler:
                 functions.append(v)
 
         if self.typedefs:
-            for t in typedefs:
-                indent(t)
+            for k, v in self.typedefs.items():
+                indent(v)
             print()
 
-        for s in self.structures:
-            indent(s)
+        if self.structures:
+            for k, v in self.structures.items():
+                indent(v)
+                print()
+
+        if functions:
+            for f in functions:
+                print('%s;' % f.compiled_header)
             print()
-
-        for fd in self.function_declarations:
-            print (fd + ';')
-
-        print()
 
         for m in methods:
             indent(m.compiled())
@@ -1879,6 +1922,7 @@ class Compiler:
         root = root_variable(lvalue)
         if not self.in_scope(root):
             if is_deref(lvalue):
+                #print(self.current_scope())
                 raise SyntaxError('dereferenced before assignment: %s : %s' % (root, lvalue))
             s = self.current_scope()
             s[root] = [var_type, var_scope]
@@ -2056,17 +2100,17 @@ class Compiler:
 
                     if exp[0] in ['(', '[']:
                         exp_ast = parse(exp)[0]
-                        et = expression_type(exp_ast)
+                        et = self.expression_type(exp_ast)
                     else:
                         variable_name = escape(exp)
                         et = self.variable_type(variable_name)
                         exp_ast = variable_name
 
                     if et == ['*', 'String']:
-                        args.append(compile_deref(exp_ast))
+                        args.append(self.compile_deref(exp_ast))
                         format_exp = '%s'
                     else:
-                        args.append(compile_expression(exp_ast))
+                        args.append(self.compile_expression(exp_ast))
 
                     parsed.append(format_exp)
                 else:
@@ -2079,7 +2123,7 @@ class Compiler:
                 args.append(compile_deref(msg))
             else:
                 args.append(ce_msg)
-            format_msg = '%%%s' % default_format_exp(ce_msg)
+            format_msg = '%%%s' % self.default_format_exp(ce_msg)
 
         args.insert(0, '"%s%s"' % (format_msg, end))
         return 'printf(%s)' % ', '.join(args)
@@ -2279,6 +2323,151 @@ def {rfn} (list (* List)) {rt}
             except KeyError:
                 pass
 
+    def compile_obj(self, name, *body):
+        compiled_fields = []
+        fields = []
+        methods = []
+
+        for exp in body:
+            first, second, *tail = exp
+            if first == 'def':
+                methods.append(second)
+                self.compile_obj_def(name, second, *tail)
+            else:
+                fields.append([first, second])
+                compiled_fields.append(compile_variable(first, second) + ';')
+
+        if 'new' not in methods:
+            obj_typedef = '%s_t' % name
+            new_body = []
+
+            for f, f_type in fields:
+                new_body.append(['=', ['->', 'self', f], self.default_value(f_type)])
+
+            self.compile_obj_def(
+                    name,
+                    'new',
+                    [],
+                    ['*', '%s_t' % name],
+                    *new_body
+                    )
+
+        if fields:
+            self.typedefs[name] = 'typedef struct {0}_s {0}_t;'.format(name)
+
+            self.structures[name] = [
+                    'struct %s_s {' % name,
+                    compiled_fields,
+                    '};',
+                    ]
+        else:
+            return None
+
+    def compile_obj_def(self,
+            object_name,
+            method_name,
+            args,
+            return_type,
+            *body):
+        function_name = '%s__%s' % (object_name, method_name)
+        obj_typedef = '%s_t' % object_name
+
+        if method_name == 'new':
+            if return_type == 'void':
+                return_type = ['*', obj_typedef]
+
+            new_body = []
+            new_body.append(['=', 'self', ['cast', ['*', obj_typedef], ['malloc', ['sizeof', obj_typedef]]]])
+            new_body.extend(body)
+            new_body.append(['return', 'self'])
+        else:
+            new_body = body
+
+        new_args = ['self', ['*', object_name]] + args
+
+        self.compiled_methods.append(self.compile_def(
+            function_name,
+            new_args,
+            return_type,
+            *new_body))
+
+    def compile_ternary(self, cond, t, f='0'):
+        return '(%s ? %s : %s)' % (
+                self.compile_expression(cond),
+                self.compile_expression(t),
+                self.compile_expression(f),
+                )
+
+    def compile_while(self, cond, *body):
+        compile_condition = self.compile_expression(cond)
+        return [
+                'while ({}) {{'.format(compile_condition),
+                self.compile_block(body),
+                '}']
+
+    def compile_return(self, exp):
+        return 'return %s' % self.compile_expression(exp)
+
+    def compile_typedef(self, name, typ):
+        #print('typedef', name, typ)
+        self.typedefs[name] = ('typedef %s %s;' % (
+            self.compile_variable('', typ),
+            name,
+            ))
+        return None
+
+    def print_includes(self):
+        includes = set()
+        includes.add('stdbool.h')
+        includes.add('stdio.h')
+        for f in self.function_calls:
+            library_name = self.lookup_library(f)
+            if library_name != None:
+                includes.add(library_name)
+
+        for i in includes:
+            print('#include <%s>' % i)
+
+    def lookup_library(self, function_name):
+        for library, functions in self.libraries.items():
+            for function in functions:
+                if function == function_name:
+                    return library
+        return None
+
+    def default_format_exp(self, exp):
+        et = self.expression_type(exp)
+        #print('dfe', exp, et)
+        if isinstance(et, list):
+            if et == ['*', 'Char']:
+                et = '*Char'
+            elif et == ['*', 'String']:
+                et = 'String'
+            elif et[0] == 'Array':
+                raise SyntaxError('can\'t print an Array')
+            else:
+                et = et[0]
+
+        defaults = {
+                'int': 'd',
+                'float': 'f',
+                'Int': 'd',
+                '*Char': 's',
+                'Char': 'c',
+                'String': 's',
+                '*': 'p',
+                }
+        try:
+            return defaults[et]
+        except KeyError:
+            raise TypeError('no default format expression for "%s"' % et)
+
+
+
+
+
+
+
 
 
 
@@ -2292,7 +2481,7 @@ def parse_type(type_expression):
 if __name__ == '__main__':
     script_name, input_filename = argv
     pc = Compiler()
-    #pc.add_standard_code()
+    pc.add_standard_code()
     pc.add_file(input_filename)
     pc.compile()
     #main()

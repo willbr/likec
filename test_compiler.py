@@ -285,8 +285,19 @@ def add (a int b int) int
             )
 
 
+    def test_define_object(self):
+        c = self.compiler
+        out = c.compile_code('''
+obj TestObject
+    a int
+    def get-a () int
+        return @->a
+''')
 
-
+        self.assertTrue('TestObject__new' in c.functions)
+        self.assertTrue('TestObject__get_a' in c.functions)
+        self.assertTrue('TestObject' in c.typedefs)
+        self.assertTrue('TestObject' in c.structures)
 
 
 

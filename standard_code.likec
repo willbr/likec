@@ -37,7 +37,7 @@ obj List
     def append (new_data (* void))
         = new_element (List)
         = new_element->data new_data
-        while (isnt @next NULL)
+        while (!= @next NULL)
             = @ @next
         = @next new_element
 
