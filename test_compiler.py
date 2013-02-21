@@ -53,6 +53,33 @@ def hyphen-test
                     ]
                 )
 
+    def test_List_constructor(self):
+        c = self.compiler
+        self.assertEqual(
+            c.compile_assignment(
+                    'a',
+                    ['List', '1', '2'],
+                    ),
+            [
+                '(a = List__new(NULL))',
+                'List__append(a, Int__new(NULL, 1))',
+                'List__append(a, Int__new(NULL, 2))',
+                ]
+                )
+
+    def test_List_append(self):
+        c = self.compiler
+        c.compile_assignment(
+                'a',
+                ['List', '1', '2'],
+                ),
+        self.assertEqual(
+            c.compile_call(
+                'a', 'append', '3'
+                    ),
+                'List__append(a, Int__new(NULL, 3))',
+                )
+
     def test_compile_each_list_variable(self):
         c = self.compiler
         c.compile_assignment(
