@@ -344,3 +344,8 @@ def test
 
 set function return turn as (expression-type (return 5))
 
+;;;;
+
+add shallow and deep versions of list functions
+map, filter, etc
+
