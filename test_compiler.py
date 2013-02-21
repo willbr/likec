@@ -155,6 +155,16 @@ def hyphen-test
                 ]
                 )
 
+    def test_compile_print(self):
+        c = self.compiler
+        c.compile_assignment('a', '5')
+        self.assertEqual(
+                c.compile_print(
+                    'i',
+                    ),
+                'printf("%d", i);'
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
