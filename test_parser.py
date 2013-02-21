@@ -21,6 +21,31 @@ def main
                 ['def', 'main', [], 'void', ['prn','"hello"']]
                 )
 
+    def test_ast_empty(self):
+        self.assertEqual(
+                ast('''
+'''),
+                []
+                )
+
+    def test_ast_single_statement(self):
+        self.assertEqual(
+                ast('''
+= a 5
+'''),
+                [['=', 'a', '5']]
+                )
+
+    def test_ast_block(self):
+        self.assertEqual(
+                ast('''
+def test
+    return 5
+'''),
+                [['def', 'test', [], 'void',
+                    ['return', '5']]]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
