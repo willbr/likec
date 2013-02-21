@@ -122,6 +122,21 @@ def hyphen-test
                 ]
                 )
 
+
+    def test_compile_each_in_range(self):
+        c = self.compiler
+        self.assertEqual(
+                c.compile_each('i', ['range', '0', '5'],
+                    ['prn', 'i']),
+                [
+                    'for (i = 0; i < 5; i += 1) {',
+                    [
+                        'printf("%d\\n", i);',
+                        ],
+                    '}',
+                ]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -2138,6 +2138,12 @@ class Compiler:
         else:
             raise TypeError(t, type_list)
 
+    def compile_range(self, start, end=None, step='1'):
+        if end == None:
+            end = start
+            start = '0'
+        return [start, end, step]
+
 def parse_type(type_expression):
     if isinstance(type_expression, str):
         return [type_expression]
