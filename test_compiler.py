@@ -230,6 +230,68 @@ pr "{a:+03d}"
                     ]
                 )
 
+    def test_reduce_over_list_variable(self):
+        c = self.compiler
+        c.compile_code('''
+def add (a int b int) int
+    return (+ a 5)
+= a (List 1 2 3)
+''')
+
+        out = c.compile_code('''
+= b (reduce add a)
+''')
+        self.assertEqual(
+                out,
+                [
+                    'b = reduce_add(a);',
+                    ]
+                )
+
+    def test_Array_constructor(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (Array 10 int 1 2 3 4)
+''')
+        self.assertEqual(
+                c.current_scope()['a'],
+                [
+                    ['Array', '10', 'int', '1', '2', '3', '4'],
+                    'local'
+                    ]
+                )
+
+        self.assertEqual(
+            c.compile_variable_declarations(),
+            ['int a[11] = {10, 1, 2, 3, 4};']
+            )
+
+    def test_String_constructor(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (String "hello world")
+''')
+        self.assertEqual(
+                c.current_scope()['a'],
+                [
+                    ['*', 'String'],
+                    'local'
+                    ]
+                )
+
+        self.assertEqual(
+            c.compile_variable_declarations(),
+            ['String_t (*a) = NULL;']
+            )
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -13,11 +13,11 @@ pp = pprint.PrettyPrinter(indent=2).pprint
 genvar_counter = 1000
 
 def scope(fn):
-    def wrapper(*args):
-        scope_stack.append(collections.OrderedDict())
-        r = fn(*args)
+    def wrapper(self, *args):
+        self.enviroment_stack.append(collections.OrderedDict())
+        r = fn(self, *args)
         #pp(scope_stack[-1])
-        scope_stack.pop()
+        self.enviroment_stack.pop()
         return r
     return wrapper
 
@@ -1368,6 +1368,13 @@ class Function:
         self.arguments = arguments
         self.return_type = return_type
 
+    def __repr__(self):
+        return "<Function {} {} => {}>".format(
+                self.name,
+                self.arguments,
+                self.return_type,
+                )
+
     def compiled(self):
         return [
                 self.compiled_header,
@@ -1414,6 +1421,7 @@ class Compiler:
                     end='\\n',
                     ),
                 'method': self.compile_method,
+                'reduce': self.compile_reduce,
                 }
 
         infix_operators = '''
@@ -1431,6 +1439,19 @@ class Compiler:
                     compile_infix,
                     op,
                     )
+
+        self.libraries = {
+                'stdio.h': {
+                    'getchar': [['void'], ['int']],
+                    },
+                'stdlib.h': {
+                    'malloc': [['size', 'size_t'], ['*', 'void']],
+                    },
+                'string.h': {
+                    'strcpy': [['s', ['*', 'char'], 'ct', ['*', 'char']], ['*', 'char']],
+                    'strlen': [['cs', ['*', 'char']], ['size_t']],
+                    },
+                }
 
     def compile(self):
         self.read_files()
@@ -1529,6 +1550,7 @@ class Compiler:
             return c
 
     def compile_expression(self, statements):
+        #print('statements', statements)
         if isinstance(statements, str):
             return self.expand_variable(statements)
         else:
@@ -1539,6 +1561,7 @@ class Compiler:
                 return self.compile_call(func_name, *args)
 
 
+    @scope
     def compile_def(self,
             function_name,
             args,
@@ -1548,7 +1571,7 @@ class Compiler:
         call_sig = '{}({})'.format(
             function_name,
             self.compile_def_arguments(args))
-
+        
         if function_name == 'main':
             if body[-1][0] != 'return':
                 body = list(body)
@@ -1574,6 +1597,7 @@ class Compiler:
 
                 self.functions['main'] = f
         else:
+            #print(self.functions)
             f = self.functions[function_name]
             f.compiled_header = function_header
             f.compiled_body = new_body
@@ -1777,6 +1801,7 @@ class Compiler:
             return lines
 
     def expression_type(self, exp):
+        #print(exp)
         if isinstance(exp, str):
             if exp in ['true', 'false']:
                 return ['Bool']
@@ -1840,8 +1865,8 @@ class Compiler:
             elif head in 'fn':
                 return tail[1]
             else:
-                if head in functions:
-                    return self.functions[head][1]
+                if head in self.functions:
+                    return self.functions[head].return_type
                 else:
                     f = self.lookup_library_function(head)
                     if f:
@@ -2048,8 +2073,8 @@ class Compiler:
                     parsed.append(s)
             format_msg = ''.join(parsed)
         else:
-            ce_msg = compile_expression(msg)
-            et = expression_type(msg)
+            ce_msg = self.compile_expression(msg)
+            et = self.expression_type(msg)
             if et == ['*', 'String']:
                 args.append(compile_deref(msg))
             else:
@@ -2092,6 +2117,19 @@ class Compiler:
             return '(*%s)' % self.compile_arguments(*args)
         else:
             return self.compile_array_offset(*args)
+
+    def compile_array_offset(self, var_name, offset):
+        vt = self.variable_type(var_name)
+        if vt[0] == 'Array':
+            # + 1 because element 0 is the length
+            offset = ['+', '1', offset]
+        elif vt[0] == 'CArray':
+            pass
+        elif vt[0] == '*':
+            pass
+        else:
+            raise TypeError(var_name, vt)
+        return '%s[%s]' % (var_name, self.compile_expression(offset))
 
     def compile_cast(self, typ, exp):
         #print('cast', typ, exp)
@@ -2144,15 +2182,106 @@ class Compiler:
             start = '0'
         return [start, end, step]
 
-    def compile_code(self, code):
-        ast = parse(code)
-        ast = expand_macros(ast)
+    def compile_code(self, new_code):
+        self.code = [new_code]
+        self.code_ast = []
+        self.parse_code()
+        self.code_ast = expand_macros(self.code_ast)
+        self.extract_type_information()
         r = []
-        for branch in ast:
+        for branch in self.code_ast:
             cs = self.compile_statement(branch)
             if cs:
                 r.append(cs)
         return r
+
+
+    def compile_reduce(self,
+            function_exp,
+            list_expression,
+            initial_value=None
+            ):
+        function_name = self.compile_expression(function_exp)
+        reduce_function_name = 'reduce_%s' % function_name
+        if reduce_function_name not in self.functions:
+            fn = self.functions[function_name]
+            #print(fn)
+            fn_args = fn.arguments
+            fn_return_type = fn.return_type
+            number_of_arguments = len(fn_args) / 2
+            if number_of_arguments != 2:
+                raise TypeError('reduce functions can only take two argument: %s' % function_name)
+            if initial_value == None:
+                compiled_initial_value = self.default_value(fn_return_type)
+            else:
+                compiled_initial_value = self.compile_expression(initial_value)
+            code = '''
+def {rfn} (list (* List)) {rt}
+    = initial-value {civ}
+    = out ({fn} initial-value (car list {rt}))
+    for (node {rt}) in (cdr list)
+        = out ({fn} out node)
+    return out
+'''.format(
+                    rfn=reduce_function_name,
+                    rt=self.type_to_sexp(fn_return_type),
+                    fn=function_name,
+                    civ=compiled_initial_value,
+                    )
+            first_exp = self.escape(ast(code))[0]
+            #print(code)
+            #print(first_exp)
+            #exit()
+            self.register_function(first_exp)
+            cs = self.compile_statement(first_exp)
+            self.compiled_functions.append(cs)
+        return self.compile_call(reduce_function_name, list_expression)
+
+
+    def type_to_sexp(self, t):
+        if isinstance(t, list):
+            if len(t) > 1:
+                return '(%s)' % ' '.join(map(self.type_to_sexp, t))
+            else:
+                return t[0]
+        else:
+            return t
+
+
+    def escape(self, s):
+        if isinstance(s, list):
+            return [self.escape(a) for a in s]
+        else:
+            if s == '':
+                return s
+            elif s in ['->']:
+                return s
+            elif s[0] in '\'"-':
+                return s
+            replacements = {
+                    '-': '_',
+                    '?': '_qm_',
+                    }
+            regexp = '(%s)' % '|'.join(map(re.escape, replacements.keys()))
+            new_s = []
+            for a in re.split(regexp, s):
+                try:
+                    new_s.append(replacements[a])
+                except KeyError:
+                    new_s.append(a)
+            return ''.join(new_s)
+
+
+    def lookup_library_function(self, func_name):
+        for library in self.libraries:
+            try:
+                return self.libraries[library][func_name]
+            except KeyError:
+                pass
+
+
+
+
 
 def parse_type(type_expression):
     if isinstance(type_expression, str):
