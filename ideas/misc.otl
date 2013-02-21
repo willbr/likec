@@ -337,3 +337,10 @@ add logging
 
 perform a code review of this project
 
+;;;;
+
+def test
+    return 5
+
+set function return turn as (expression-type (return 5))
+
