@@ -1,3 +1,12 @@
+add tests
+
+map
+anon functions
+no main statement
+list functions over a new list (map {+ $ $} (List 1 2 3))
+
+;;;;
+
 mark functions as called and only include those in the output
 
 ;;;;
