@@ -65,12 +65,6 @@ def compile_cond(*args):
     lines.append('}')
     return lines
 
-def compile_if(pred, *body):
-    return [
-        'if (%s) {' % compile_expression(pred),
-        compile_block(body),
-        '}']
-
 def compile_repeat(count, *body):
     counter_name = genvar('repeat')
     return compile_for(counter_name, 'in', ['range', count], *body)
@@ -308,6 +302,7 @@ class Compiler:
                 'obj': self.compile_obj,
                 '='  : self.compile_assignment,
                 'while': self.compile_while,
+                'if': self.compile_if,
                 'return': self.compile_return,
                 '->': self.compile_indirect_component,
                 'deref': self.compile_deref,
@@ -1524,6 +1519,12 @@ def {fn} (a {vt}) (* void)
             return '(({0} <= {1}) && ({1} <= {2}))'.format(start, a, end)
         else:
             raise TypeError(a, b)
+
+    def compile_if(self, pred, *body):
+        return [
+            'if (%s) {' % self.compile_expression(pred),
+            self.compile_block(body),
+            '}']
 
 
 

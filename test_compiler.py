@@ -415,6 +415,25 @@ post-dec a
                     ]
                 )
 
+    def test_if(self):
+        c = self.compiler
+        out = c.compile_code('''
+if 1
+    prn 1
+    prn 2
+''')
+        self.assertEqual(
+                out,
+                [[
+                    'if (1) {',
+                    [
+                        'printf("%d\\n", 1);',
+                        'printf("%d\\n", 2);',
+                        ],
+                    '}',
+                    ]]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

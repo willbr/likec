@@ -1,7 +1,6 @@
 add tests
 
 cond
-if
 repeat
 switch
 break
