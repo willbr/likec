@@ -171,11 +171,7 @@ class Tokenizer:
                         yield Token('ID', 'range', t.line, t.column)
                         yield Token('ID', start, t.line, t.column)
                         if len(middle) == 2:
-                            yield Token('OPEN_PAREN', '(', t.line, t.column)
-                            yield Token('ID', '+', t.line, t.column)
-                            yield Token('ID', end, t.line, t.column)
-                            yield Token('ID', '1', t.line, t.column)
-                            yield Token('CLOSE_PAREN', ')', t.line, t.column)
+                            yield Token('ID', str(int(end)+1), t.line, t.column)
                         else:
                             yield Token('ID', end, t.line, t.column)
                         yield Token('CLOSE_PAREN', ')', t.line, t.column)

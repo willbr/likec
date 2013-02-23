@@ -80,6 +80,41 @@ reduce {+ $ $} a
                     ]
                 )
 
+    def test_range_syntax_inclusive(self):
+        t = prefix_tokenizer.Tokenizer('''
+0..10
+''')
+        tokens = values(t.tokens)
+
+        self.assertEqual(
+                tokens,
+                [
+                    '(',
+                    'range',
+                    '0',
+                    '11',
+                    ')',
+                    '\n'
+                    ]
+                )
+
+    def test_range_syntax_exclusive(self):
+        t = prefix_tokenizer.Tokenizer('''
+0...10
+''')
+        tokens = values(t.tokens)
+
+        self.assertEqual(
+                tokens,
+                [
+                    '(',
+                    'range',
+                    '0',
+                    '10',
+                    ')',
+                    '\n'
+                    ]
+                )
 def values(tokens):
     return [t.value for t in tokens]
 

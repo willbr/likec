@@ -22,21 +22,21 @@ def hyphen-test
                 ['def', 'hyphen_test', [], 'void', ['prn','"hello"']]
                 )
 
-    def test_compile_range_end(self):
+    def test_parse_range_end(self):
         self.assertEqual(
-                prefix_compiler.compile_range('10'),
+                prefix_compiler.parse_range('10'),
                 ['0', '10', '1']
                 )
 
-    def test_compile_range_start_end(self):
+    def test_parse_range_start_end(self):
         self.assertEqual(
-                prefix_compiler.compile_range('1', '10'),
+                prefix_compiler.parse_range('1', '10'),
                 ['1', '10', '1']
                 )
 
-    def test_compile_range_start_end_step(self):
+    def test_parse_range_start_end_step(self):
         self.assertEqual(
-                prefix_compiler.compile_range('1', '10', '2'),
+                prefix_compiler.parse_range('1', '10', '2'),
                 ['1', '10', '2']
                 )
 
@@ -387,6 +387,33 @@ post-dec a
                     ]
                 )
 
+    def test_in_range(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (in 5 0..10)
+= a (in 5 0...10)
+= a (in 5 (range 10))
+''')
+        self.assertEqual(
+                out,
+                [
+                    'a = ((0 <= 5) && (5 <= 11));',
+                    'a = ((0 <= 5) && (5 <= 10));',
+                    'a = ((0 <= 5) && (5 <= 10));',
+                    ]
+                )
+
+    def test_in_range(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (in c "ae")
+''')
+        self.assertEqual(
+                out,
+                [
+                    "a = ((c == 'a') || (c == 'e'));",
+                    ]
+                )
 
 if __name__ == '__main__':
     unittest.main()

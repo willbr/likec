@@ -31,7 +31,7 @@ def parse(text):
     return escape(ast(text))
 
 
-def compile_range(start, end=None, step='1'):
+def parse_range(start, end=None, step='1'):
     if end == None:
         end = start
         start = '0'
@@ -41,22 +41,6 @@ def compile_array(length, array_type, initial_values=None):
     raise SyntaxError('how did I get here/')
     return '{asdf %s%s}' % (length, ', '.join(initial_values))
 
-
-def compile_in(a, b):
-    b_et = expression_type(b)
-    if b_et == ['*', 'Char']:
-        chars = filter(None, re.split('(\\\\.|.)', b[1:-1]))
-        tests = ('(%s == \'%s\')' % (a, c) for c in chars)
-        return '(%s)' % ' || '.join(tests)
-    elif b[0] == 'range':
-        bottom, top = b[1:]
-        if isinstance(b, list):
-            top = top[1]
-            return '(({0} <= {1}) && ({1} <= {2}))'.format(bottom, a, top)
-        else:
-            return '(({0} <= {1}) && ({1} < {2}))'.format(bottom, a, top)
-    else:
-        raise TypeError(a, b)
 
 def compile_cond(*args):
     lines = []
@@ -357,6 +341,7 @@ class Compiler:
                     self.compile_increment,
                     post='--',
                     ),
+                'in': self.compile_in,
                 }
 
         self.infix_operators = '''
@@ -838,6 +823,8 @@ class Compiler:
                 return ['*', 'void']
             elif head in 'fn':
                 return tail[1]
+            elif head == 'in':
+                return ['Int']
             else:
                 if head in self.functions:
                     return self.functions[head].return_type
@@ -903,7 +890,7 @@ class Compiler:
         head, *tail = list_expression
         et = self.expression_type(list_expression)
         if head == 'range':
-            start, end, step = compile_range(*tail)
+            start, end, step = parse_range(*tail)
             self.declare(bind_name, bind_type)
             init = '%s = %s' % (bind_name, start)
             cond = '%s < %s' % (
@@ -956,7 +943,7 @@ class Compiler:
         #print('for',a,b,c)
         if b == 'in':
             if c[0] == 'range':
-                start, end, step = self.compile_range(*c[1:])
+                start, end, step = parse_range(*c[1:])
                 self.declare(a, 'int')
                 init = '%s = %s' % (a, start)
                 cond = '%s < %s' % (a, self.compile_expression(end))
@@ -1523,6 +1510,20 @@ def {fn} (a {vt}) (* void)
 
     def compile_increment(self, exp, pre='', post=''):
         return '(%s%s%s)' % (pre, self.compile_expression(exp), post)
+
+    def compile_in(self, a, b):
+        b_et = self.expression_type(b)
+        if b_et == ['*', 'Char']:
+            chars = filter(None, re.split('(\\\\.|.)', b[1:-1]))
+            tests = ('(%s == \'%s\')' % (a, c) for c in chars)
+            return '(%s)' % ' || '.join(tests)
+        elif b[0] == 'range':
+            start, end, step = parse_range(*b[1:])
+            start = self.compile_expression(start)
+            end = self.compile_expression(end)
+            return '(({0} <= {1}) && ({1} <= {2}))'.format(start, a, end)
+        else:
+            raise TypeError(a, b)
 
 
 

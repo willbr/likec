@@ -1,6 +1,5 @@
 add tests
 
-in
 cond
 if
 repeat
@@ -367,4 +366,8 @@ set function return turn as (expression-type (return 5))
 
 add shallow and deep versions of list functions
 map, filter, etc
+
+;;;;
+
+check for variable references before assignment
 
