@@ -13,6 +13,7 @@ class TestPrefixCompiler(unittest.TestCase):
         self.compiler = c
 
     def test_parse(self):
+        c = self.compiler
         self.assertEqual(
                 prefix_compiler.parse('''
 def hyphen-test
@@ -22,27 +23,31 @@ def hyphen-test
                 )
 
     def test_compile_range_end(self):
+        c = self.compiler
         self.assertEqual(
-                prefix_compiler.compile_range('10'),
+                c.compile_range('10'),
                 ['0', '10', '1']
                 )
 
     def test_compile_range_start_end(self):
+        c = self.compiler
         self.assertEqual(
-                prefix_compiler.compile_range('1', '10'),
+                c.compile_range('1', '10'),
                 ['1', '10', '1']
                 )
 
     def test_compile_range_start_end_step(self):
+        c = self.compiler
         self.assertEqual(
-                prefix_compiler.compile_range('1', '10', '2'),
+                c.compile_range('1', '10', '2'),
                 ['1', '10', '2']
                 )
 
 
     def test_compile_each_range(self):
+        c = self.compiler
         self.assertEqual(
-                prefix_compiler.compile_each('i', ['range', '5'],
+                c.compile_each('i', ['range', '5'],
                     ['prn', 'i']),
                 [
                     'for (i = 0; i < 5; i += 1) {',
@@ -227,6 +232,24 @@ pr "{a:+03d}"
                 [
                     'a = 5;',
                     'printf("%+03d", a);',
+                    ]
+                )
+
+    def test_map_over_list_variable(self):
+        c = self.compiler
+        c.compile_code('''
+def doubleit (a int) int
+    return (* a 2)
+= a (List 1 2 3)
+''')
+
+        out = c.compile_code('''
+= b (map doubleit a)
+''')
+        self.assertEqual(
+                out,
+                [
+                    'b = map_doubleit(a);',
                     ]
                 )
 

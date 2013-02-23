@@ -4,6 +4,8 @@ import itertools
 import functools
 import collections
 import re
+import logging
+import pdb
 
 from prefix_parser import ast
 from sys import argv
@@ -14,16 +16,21 @@ genvar_counter = 1000
 
 def scope(fn):
     def wrapper(self, *args):
+        function_name, *_ = args
+        logging.info('scope:enter:%s', function_name)
         self.enviroment_stack.append(collections.OrderedDict())
+
         r = fn(self, *args)
-        #pp(scope_stack[-1])
+
+        #pp(self.current_scope())
+
+        logging.info('scope:exit :%s', function_name)
         self.enviroment_stack.pop()
         return r
     return wrapper
 
 def parse(text):
     return escape(ast(text))
-
 
 def expand_macros(tree):
     if isinstance(tree, list):
@@ -114,15 +121,6 @@ def main ():
 
     indent(main_compiled)
     print()
-
-
-def register_function(function_name, args, return_type):
-    if function_name in compile_functions:
-        raise SyntaxError('Can\'t redefine keyword: %s' % function_name)
-    if function_name in functions:
-        raise SyntaxError('function redefined: %s' % function_name)
-    else:
-        functions[function_name] = [args, return_type]
 
 
 def compile_object_fields(ast):
@@ -571,7 +569,7 @@ def compile_method(obj, method, *args):
     else:
         if method == 'append':
             new_args = []
-            for arg in args:
+            for arg in argsere:
                 new_args.append(make_constructor(arg))
         else:
             new_args = args
@@ -888,12 +886,13 @@ def expand_anonymous_function_shorthand(*statement):
         try:
             return local_variables[argument_number]['name']
         except KeyError:
-            variable_name = genvar('arg')
-            local_variables[argument_number] = {
-                    'name': variable_name,
-                    'type': variable_type or ['Int'],
-                    }
-            return variable_name
+            pass
+        variable_name = genvar('arg')
+        local_variables[argument_number] = {
+                'name': variable_name,
+                'type': variable_type or ['Int'],
+                }
+        return variable_name
 
     local_variables = {}
 
@@ -912,43 +911,10 @@ def expand_anonymous_function_shorthand(*statement):
     #exit()
     return ['fn', args, return_type, ['return', body]]
 
-def compile_make_ctype(var_type, exp):
-    if isinstance(var_type, str):
-        var_type = [var_type]
-    fn_name = 'make_ctype_%s' % '_'.join(var_type)
-    if fn_name not in functions:
-        code = '''
-def {fn} (a {vt}) (* void)
-    = p (cast {pvt} (malloc (sizeof {vt})))
-    = [p] a
-    return p
-'''.format(
-        fn=fn_name,
-        vt=type_to_sexp(var_type),
-        pvt=type_to_sexp(['*'] + var_type),
-        )
-    first_exp = escape(ast(code)[0])
-    #pp(first_exp)
-    cs = compile_statement(first_exp)
-    #print()
-    #indent(cs)
-    #exit()
-    compiled_functions.append(cs)
-    return compile_call(fn_name, exp)
-
 def compile_sizeof(var_type):
     cv = compile_variable('', var_type)
     #print('sizeof', var_type, cv)
     return 'sizeof(%s)' % cv
-
-def type_to_sexp(t):
-    if isinstance(t, list):
-        if len(t) > 1:
-            return '(%s)' % ' '.join(map(type_to_sexp, t))
-        else:
-            return t[0]
-    else:
-        return t
 
 def split_format_block(block):
     #print(block)
@@ -1292,65 +1258,9 @@ libraries = {
             },
         }
 
-compile_functions = {
-        'def': compile_def,
-        'obj': compile_obj,
-        '='  : compile_assignment,
-        'for': compile_for,
-        'while': compile_while,
-        'return': compile_return,
-        'array_offset': compile_array_offset,
-        'cast': compile_cast,
-        'typedef': compile_typedef,
-        'deref': compile_deref,
-        '->': compile_indirect_component,
-        'method': compile_method,
-        'genvar': genvar,
-        'inc': functools.partial(compile_increment, '++', ''),
-        'dec': functools.partial(compile_increment, '--', ''),
-        'post_inc': functools.partial(compile_increment, '', '++'),
-        'post_dec': functools.partial(compile_increment, '', '--'),
-        '_qm_': compile_ternary,
-        'is': functools.partial(compile_infix, '=='),
-        'isnt': functools.partial(compile_infix, '!='),
-        'pr': compile_print,
-        'prn': functools.partial(compile_print, end='\\n'),
-        'in': compile_in,
-        'cond': compile_cond,
-        'switch': compile_switch,
-        '&': compile_address,
-        'address': compile_address,
-        'break': compile_break,
-        'continue': compile_continue,
-        'if': compile_if,
-        'repeat': compile_repeat,
-        'map': compile_map,
-        'filter': compile_filter,
-        'reduce': compile_reduce,
-        'car': compile_car,
-        'not': compile_not,
-        'fn': compile_anonymous_function,
-        'make_ctype': compile_make_ctype,
-        'sizeof': compile_sizeof,
-        'each': compile_each,
-        }
-
 macro_functions = {
         'fn_shorthand': expand_anonymous_function_shorthand,
         }
-
-infix_operators = '''
-+ - * /
-== !=
-+= -=
-*= /=
-< >
-<= >=
-'''.split()
-
-
-for o in infix_operators:
-    compile_functions[o] = functools.partial(compile_infix, o)
 
 ###########################################################
 
@@ -1402,7 +1312,6 @@ class Compiler:
         self.compiled_functions = []
         self.compiled_main_function = []
 
-        self.function_declarations = []
         self.function_calls = []
 
         self.enviroment_stack = [collections.OrderedDict()]
@@ -1423,12 +1332,15 @@ class Compiler:
                     end='\\n',
                     ),
                 'method': self.compile_method,
+                'each': self.compile_each,
+                'map': self.compile_map,
                 'reduce': self.compile_reduce,
                 '_qm_': self.compile_ternary,
                 'typedef': self.compile_typedef,
+                'make_ctype': self.compile_make_ctype,
                 }
 
-        infix_operators = '''
+        self.infix_operators = '''
         + - * /
         == !=
         += -=
@@ -1438,9 +1350,9 @@ class Compiler:
         '''.split()
 
 
-        for op in infix_operators:
+        for op in self.infix_operators:
             self.code_compile_functions[op] = functools.partial(
-                    compile_infix,
+                    self.compile_infix,
                     op,
                     )
 
@@ -1872,7 +1784,7 @@ class Compiler:
                 return tail[0]
             elif is_obj(head):
                 return ['*', head]
-            elif is_infix_operator(head):
+            elif self.is_infix_operator(head):
                 return self.expression_type(tail[0])
             elif head == 'sizeof':
                 return ['size_t']
@@ -2184,7 +2096,8 @@ class Compiler:
 
     def make_constructor(self, arg):
         et = self.expression_type(arg)
-        if isinstance(et, list) and len(et) == 1:
+        #print('make-construcor', arg, et)
+        if isinstance(et, list) and is_obj(et[0]):
             return [et[0], arg]
         else:
             return ['make_ctype', et, arg]
@@ -2239,6 +2152,41 @@ class Compiler:
                 r.append(cs)
         return r
 
+    def compile_map(self,
+            function_exp,
+            list_expression,
+            ):
+        function_name = self.compile_expression(function_exp)
+        map_function_name = 'map_%s' % function_name
+        if map_function_name not in self.functions:
+            fn = self.functions[function_name]
+            #print(fn)
+            fn_args = fn.arguments
+            element_type = fn.return_type
+            number_of_arguments = len(fn_args) / 2
+            if number_of_arguments != 1:
+                raise TypeError('map functions can only take one argument: %s' % function_name)
+
+            code = '''
+def {mfn} (old-list (* List)) (* List)
+    = new-list (List)
+    each (n {et}) old-list
+        new-list append ({fn} n)
+    return new-list
+'''.format(
+        mfn=map_function_name,
+        et=self.type_to_sexp(element_type),
+        fn=function_name,
+        )
+
+            first_exp = self.escape(ast(code))[0]
+            #print(code)
+            #print(first_exp)
+            #exit()
+            self.register_function(first_exp)
+            cs = self.compile_statement(first_exp)
+            self.compiled_functions.append(cs)
+        return self.compile_call(map_function_name, list_expression)
 
     def compile_reduce(self,
             function_exp,
@@ -2462,8 +2410,41 @@ def {rfn} (list (* List)) {rt}
         except KeyError:
             raise TypeError('no default format expression for "%s"' % et)
 
+    def compile_make_ctype(self, var_type, exp):
+        if isinstance(var_type, str):
+            var_type = [var_type]
+        fn_name = 'make_ctype_%s' % '_'.join(var_type)
+        if fn_name not in self.functions:
+            code = '''
+def {fn} (a {vt}) (* void)
+    = p (cast {pvt} (malloc (sizeof {vt})))
+    = [p] a
+    return p
+    '''.format(
+            fn=fn_name,
+            vt=self.type_to_sexp(var_type),
+            pvt=self.type_to_sexp(['*'] + var_type),
+            )
+        first_exp = self.escape(ast(code)[0])
+        #print(code)
+        #pp(first_exp)
+        #print()
+        #indent(cs)
+        #exit()
 
+        self.register_function(first_exp)
+        #pp(self.functions)
+        cs = self.compile_statement(first_exp)
+        self.compiled_functions.append(cs)
 
+        return self.compile_call(fn_name, exp)
+
+    def compile_infix(self, operator, *operands):
+        compiled_operands = [self.compile_expression(o) for o in operands]
+        return '(%s)' % (' %s ' % operator).join(compiled_operands)
+
+    def is_infix_operator(self, op):
+        return op in self.infix_operators
 
 
 
@@ -2479,6 +2460,7 @@ def parse_type(type_expression):
         return type_expression
 
 if __name__ == '__main__':
+    #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     pc.add_standard_code()
