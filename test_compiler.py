@@ -23,23 +23,20 @@ def hyphen-test
                 )
 
     def test_compile_range_end(self):
-        c = self.compiler
         self.assertEqual(
-                c.compile_range('10'),
+                prefix_compiler.compile_range('10'),
                 ['0', '10', '1']
                 )
 
     def test_compile_range_start_end(self):
-        c = self.compiler
         self.assertEqual(
-                c.compile_range('1', '10'),
+                prefix_compiler.compile_range('1', '10'),
                 ['1', '10', '1']
                 )
 
     def test_compile_range_start_end_step(self):
-        c = self.compiler
         self.assertEqual(
-                c.compile_range('1', '10', '2'),
+                prefix_compiler.compile_range('1', '10', '2'),
                 ['1', '10', '2']
                 )
 
@@ -357,11 +354,11 @@ obj TestObject
                         'List__append(a, Int__new(NULL, 2))',
                         'List__append(a, Int__new(NULL, 3))',
                         ],
-                    'b = map_anonymous_function1000(a);',
+                    'b = map_anonymous_function1001(a);',
                     ]
                 )
 
-        f = c.functions['map_anonymous_function1000']
+        f = c.functions['map_anonymous_function1001']
 
         #f.compiled_body
         #f.compiled_header
@@ -369,30 +366,9 @@ obj TestObject
 
         self.assertEqual(
                 f.compiled_header,
-                'List_t (*map_anonymous_function1000(List_t (*old_list)))'
+                'List_t (*map_anonymous_function1001(List_t (*old_list)))'
                 )
 
-        self.assertEqual(
-                f.compiled_body,
-                [
-                    'List_t (*List__iterator1001) = NULL;',
-                    'Int_t n = 0;',
-                    'List_t (*new_list) = NULL;',
-                    'new_list = List__new(NULL);',
-                    'for ((List__iterator1001 = old_list); (List__iterator1001->next != NULL); (List__iterator1001 = List__iterator1001->next)) {',
-                    [
-                        'n = (*(Int_t *)(List__iterator1001->next->data));',
-                        'List__append(new_list, Int__new(NULL, anonymous_function1000(n)));',
-                        ],
-                    '}',
-                    'return new_list;',
-                    ]
-                )
-
-        self.assertEqual(
-                f.is_method,
-                False
-                )
 
 if __name__ == '__main__':
     unittest.main()
