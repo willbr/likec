@@ -450,6 +450,17 @@ repeat 2
                     '}',
                     ]]
                 )
+
+    def test_continue(self):
+        c = self.compiler
+        out = c.compile_code('continue')
+        self.assertEqual(out, ['continue;', ])
+
+    def test_break(self):
+        c = self.compiler
+        out = c.compile_code('break')
+        self.assertEqual(out, ['break;', ])
+
 if __name__ == '__main__':
     unittest.main()
 

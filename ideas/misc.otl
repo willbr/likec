@@ -2,8 +2,6 @@ add tests
 
 cond
 switch
-break
-continue
 address
 filter
 car

@@ -88,12 +88,6 @@ def compile_switch(exp, *cases):
     lines.append('}')
     return lines
 
-def compile_break():
-    return 'break'
-
-def compile_continue():
-    return 'continue'
-
 def compile_address(exp):
     return '(&%s)' % compile_expression(exp)
 
@@ -300,6 +294,8 @@ class Compiler:
                 'while': self.compile_while,
                 'if': self.compile_if,
                 'return': self.compile_return,
+                'break': self.compile_break,
+                'continue': self.compile_continue,
                 '->': self.compile_indirect_component,
                 'deref': self.compile_deref,
                 'cast': self.compile_cast,
@@ -1530,6 +1526,12 @@ def {fn} (a {vt}) (* void)
                 ['range', count],
                 *body
                 )
+
+    def compile_break(self):
+        return 'break'
+
+    def compile_continue(self):
+        return 'continue'
 
 
 
