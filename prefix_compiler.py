@@ -31,38 +31,6 @@ def parse(text):
     return escape(ast(text))
 
 
-def compile_object_fields(ast):
-    _, obj_name, *body = ast
-    stack = body[::-1]
-    fields = {}
-    while stack:
-        exp = stack.pop()
-        if exp[0] == 'def':
-            break
-        field_name, field_type = exp
-        fields[field_name] = field_type
-    objects[obj_name] = fields
-
-
-def compile_object_methods(ast):
-    _, obj_name, *body = ast
-    stack = body[::-1]
-    while stack:
-        exp = stack.pop()
-        if exp[0] != 'def':
-            continue
-        _, method_name, method_args, return_type, *body = exp
-        fn_name = '%s__%s' % (obj_name, method_name)
-        obj_typedef = '%s_t' % obj_name
-
-        if method_name == 'new':
-            if return_type == 'void':
-                return_type = ['*', obj_typedef]
-
-        fn_args = ['self', ['*', obj_name]] + method_args
-
-        register_function(fn_name, fn_args, return_type)
-
 def compile_range(start, end=None, step='1'):
     if end == None:
         end = start
@@ -73,10 +41,6 @@ def compile_array(length, array_type, initial_values=None):
     raise SyntaxError('how did I get here/')
     return '{asdf %s%s}' % (length, ', '.join(initial_values))
 
-
-def compile_increment(pre='', post='', exp=''):
-    declare(root_variable(exp), ['int'])
-    return '(%s%s%s)' % (pre, compile_expression(exp), post)
 
 def compile_in(a, b):
     b_et = expression_type(b)
@@ -377,6 +341,22 @@ class Compiler:
                 'typedef': self.compile_typedef,
                 'make_ctype': self.compile_make_ctype,
                 'fn': self.compile_anonymous_function,
+                'inc': functools.partial(
+                    self.compile_increment,
+                    pre='++',
+                    ),
+                'dec': functools.partial(
+                    self.compile_increment,
+                    pre='--',
+                    ),
+                'post_inc': functools.partial(
+                    self.compile_increment,
+                    post='++',
+                    ),
+                'post_dec': functools.partial(
+                    self.compile_increment,
+                    post='--',
+                    ),
                 }
 
         self.infix_operators = '''
@@ -1540,6 +1520,9 @@ def {fn} (a {vt}) (* void)
         cs = self.compile_def(fn_name, args, return_type, *body)
         self.compiled_functions.append(cs)
         return fn_name
+
+    def compile_increment(self, exp, pre='', post=''):
+        return '(%s%s%s)' % (pre, self.compile_expression(exp), post)
 
 
 

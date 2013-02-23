@@ -369,6 +369,24 @@ obj TestObject
                 'List_t (*map_anonymous_function1001(List_t (*old_list)))'
                 )
 
+    def test_increment(self):
+        c = self.compiler
+        out = c.compile_code('''
+inc a
+dec a
+post-inc a
+post-dec a
+''')
+        self.assertEqual(
+                out,
+                [
+                    '++a;',
+                    '--a;',
+                    'a++;',
+                    'a--;',
+                    ]
+                )
+
 
 if __name__ == '__main__':
     unittest.main()

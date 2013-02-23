@@ -1,6 +1,17 @@
 add tests
 
-remove old code
+in
+cond
+if
+repeat
+switch
+break
+continue
+address
+filter
+car
+not
+sizeof
 no main statement
 list functions over a new list (map {+ $ $} (List 1 2 3))
 
