@@ -65,10 +65,6 @@ def compile_cond(*args):
     lines.append('}')
     return lines
 
-def compile_repeat(count, *body):
-    counter_name = genvar('repeat')
-    return compile_for(counter_name, 'in', ['range', count], *body)
-
 def compile_switch(exp, *cases):
     lines = []
     found_default = False
@@ -314,6 +310,7 @@ class Compiler:
                     ),
                 'method': self.compile_method,
                 'each': self.compile_each,
+                'repeat': self.compile_repeat,
                 'map': self.compile_map,
                 'reduce': self.compile_reduce,
                 '_qm_': self.compile_ternary,
@@ -1525,6 +1522,14 @@ def {fn} (a {vt}) (* void)
             'if (%s) {' % self.compile_expression(pred),
             self.compile_block(body),
             '}']
+
+    def compile_repeat(self, count, *body):
+        counter_name = self.genvar('repeat')
+        return self.compile_each(
+                counter_name,
+                ['range', count],
+                *body
+                )
 
 
 

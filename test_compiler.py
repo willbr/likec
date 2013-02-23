@@ -434,6 +434,22 @@ if 1
                     ]]
                 )
 
+    def test_repeat(self):
+        c = self.compiler
+        out = c.compile_code('''
+repeat 2
+    prn "beep"
+''')
+        self.assertEqual(
+                out,
+                [[
+                    'for (repeat1000 = 0; repeat1000 < 2; repeat1000 += 1) {',
+                    [
+                        'printf("beep\\n");',
+                        ],
+                    '}',
+                    ]]
+                )
 if __name__ == '__main__':
     unittest.main()
 
