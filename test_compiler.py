@@ -323,8 +323,76 @@ obj TestObject
         self.assertTrue('TestObject' in c.structures)
 
 
+    def test_anonymous_functions(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (List 1 2 3)
+= b (map (fn (n int) int (return (+ n 1))) a)
+''')
+        self.assertEqual(
+                out,
+                [
+                    [
+                        '(a = List__new(NULL))',
+                        'List__append(a, Int__new(NULL, 1))',
+                        'List__append(a, Int__new(NULL, 2))',
+                        'List__append(a, Int__new(NULL, 3))',
+                        ],
+                    'b = map_anonymous_function1000(a);',
+                    ]
+                )
 
+    def test_anonymous_functions_shorthand(self):
+        c = self.compiler
+        out = c.compile_code('''
+= a (List 1 2 3)
+= b (map {+ $ 1} a)
+''')
+        self.assertEqual(
+                out,
+                [
+                    [
+                        '(a = List__new(NULL))',
+                        'List__append(a, Int__new(NULL, 1))',
+                        'List__append(a, Int__new(NULL, 2))',
+                        'List__append(a, Int__new(NULL, 3))',
+                        ],
+                    'b = map_anonymous_function1000(a);',
+                    ]
+                )
 
+        f = c.functions['map_anonymous_function1000']
+
+        #f.compiled_body
+        #f.compiled_header
+        #f.is_method
+
+        self.assertEqual(
+                f.compiled_header,
+                'List_t (*map_anonymous_function1000(List_t (*old_list)))'
+                )
+
+        self.assertEqual(
+                f.compiled_body,
+                [
+                    'List_t (*List__iterator1001) = NULL;',
+                    'Int_t n = 0;',
+                    'List_t (*new_list) = NULL;',
+                    'new_list = List__new(NULL);',
+                    'for ((List__iterator1001 = old_list); (List__iterator1001->next != NULL); (List__iterator1001 = List__iterator1001->next)) {',
+                    [
+                        'n = (*(Int_t *)(List__iterator1001->next->data));',
+                        'List__append(new_list, Int__new(NULL, anonymous_function1000(n)));',
+                        ],
+                    '}',
+                    'return new_list;',
+                    ]
+                )
+
+        self.assertEqual(
+                f.is_method,
+                False
+                )
 
 if __name__ == '__main__':
     unittest.main()

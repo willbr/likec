@@ -1,6 +1,6 @@
 add tests
 
-anon functions
+remove old code
 no main statement
 list functions over a new list (map {+ $ $} (List 1 2 3))
 

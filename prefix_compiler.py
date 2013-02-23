@@ -32,21 +32,6 @@ def scope(fn):
 def parse(text):
     return escape(ast(text))
 
-def expand_macros(tree):
-    if isinstance(tree, list):
-        if not tree:
-            return tree
-        head, *tail = tree
-        if isinstance(head, list):
-            pass
-        elif head in macro_functions:
-            tree = macro_functions[head](*tail)
-            return [expand_macros(leaf) for leaf in tree]
-        return [expand_macros(leaf) for leaf in tree]
-    else:
-        return tree
-
-
 def main ():
     global main_lines
     input_text = open(argv[1]).read()
@@ -1226,42 +1211,6 @@ def escape(s):
                 new_s.append(a)
         return ''.join(new_s)
 
-
-scope_stack = [collections.OrderedDict()]
-
-typedefs = []
-objects = {}
-macros = {}
-functions = {}
-structures = []
-
-function_declarations = []
-functions_declared = set()
-function_calls = set()
-compiled_methods = []
-compiled_functions = []
-
-main_defined = False
-main_lines = []
-main_compiled = None
-
-libraries = {
-        'stdio.h': {
-            'getchar': [['void'], ['int']],
-            },
-        'stdlib.h': {
-            'malloc': [['size', 'size_t'], ['*', 'void']],
-            },
-        'string.h': {
-            'strcpy': [['s', ['*', 'char'], 'ct', ['*', 'char']], ['*', 'char']],
-            'strlen': [['cs', ['*', 'char']], ['size_t']],
-            },
-        }
-
-macro_functions = {
-        'fn_shorthand': expand_anonymous_function_shorthand,
-        }
-
 ###########################################################
 
 class Function:
@@ -1312,12 +1261,17 @@ class Compiler:
         self.compiled_functions = []
         self.compiled_main_function = []
 
+        self.macro_functions = {
+                'fn_shorthand':
+                self.expand_anonymous_function_shorthand,
+                }
+
         self.function_calls = []
 
         self.enviroment_stack = [collections.OrderedDict()]
 
         self.genvar_counter = 1000
-        self.code_compile_functions = {
+        self.keyword_compile_functions = {
                 'def': self.compile_def,
                 'obj': self.compile_obj,
                 '='  : self.compile_assignment,
@@ -1338,6 +1292,7 @@ class Compiler:
                 '_qm_': self.compile_ternary,
                 'typedef': self.compile_typedef,
                 'make_ctype': self.compile_make_ctype,
+                'fn': self.compile_anonymous_function,
                 }
 
         self.infix_operators = '''
@@ -1351,7 +1306,7 @@ class Compiler:
 
 
         for op in self.infix_operators:
-            self.code_compile_functions[op] = functools.partial(
+            self.keyword_compile_functions[op] = functools.partial(
                     self.compile_infix,
                     op,
                     )
@@ -1372,7 +1327,7 @@ class Compiler:
     def compile(self):
         self.read_files()
         self.parse_code()
-        self.code_ast = expand_macros(self.code_ast)
+        self.code_ast = self.expand_macros(self.code_ast)
         self.extract_type_information()
         self.compile_statements()
         self.compile_main()
@@ -1405,9 +1360,9 @@ class Compiler:
         _, function_name, args, raw_return_type, *_ = ast
         return_type = parse_type(raw_return_type)
 
-        if function_name in self.functions:
+        if function_name in self.keyword_compile_functions:
             raise SyntaxError('Can\'t redefine keyword: %s' % function_name)
-        if function_name in functions:
+        if function_name in self.functions:
             raise SyntaxError('function redefined: %s' % function_name)
         else:
             self.functions[function_name] = Function(
@@ -1497,8 +1452,8 @@ class Compiler:
             return self.expand_variable(statements)
         else:
             func_name, *args = statements
-            if func_name in self.code_compile_functions.keys():
-                return self.code_compile_functions[func_name](*args)
+            if func_name in self.keyword_compile_functions.keys():
+                return self.keyword_compile_functions[func_name](*args)
             else:
                 return self.compile_call(func_name, *args)
 
@@ -2008,7 +1963,7 @@ class Compiler:
                     parsed.append(s)
                 elif s[0] == '{':
                     contents = s[1:-1]
-                    exp, format_exp = split_format_block(contents)
+                    exp, format_exp = self.split_format_block(contents)
 
                     if exp[0] in ['(', '[']:
                         exp_ast = parse(exp)[0]
@@ -2143,7 +2098,7 @@ class Compiler:
         self.code = [new_code]
         self.code_ast = []
         self.parse_code()
-        self.code_ast = expand_macros(self.code_ast)
+        self.code_ast = self.expand_macros(self.code_ast)
         self.extract_type_information()
         r = []
         for branch in self.code_ast:
@@ -2446,9 +2401,67 @@ def {fn} (a {vt}) (* void)
     def is_infix_operator(self, op):
         return op in self.infix_operators
 
+    def expand_anonymous_function_shorthand(self, *statement):
+        def walk_statement(t):
+            if isinstance(t, list):
+                head, *tail = t
+                if head == '$':
+                    return parse_variable(*tail)
+                else:
+                    return [walk_statement(e) for e in  t]
+            else:
+                if t == '$':
+                    return parse_variable('1')
+                elif t[0] == '$':
+                    n = t[1:]
+                    return parse_variable(n)
+                else:
+                    return t
 
+        def parse_variable(argument_number, variable_type=None):
+            try:
+                return local_variables[argument_number]['name']
+            except KeyError:
+                pass
+            variable_name = genvar('arg')
+            local_variables[argument_number] = {
+                    'name': variable_name,
+                    'type': variable_type or ['Int'],
+                    }
+            return variable_name
 
+        local_variables = {}
 
+        body = walk_statement(list(statement))
+        sorted_variables = collections.OrderedDict(
+                sorted(local_variables.items()))
+        args = []
+        self.enviroment_stack.append(collections.OrderedDict())
+        for k, v in sorted_variables.items():
+            n, t = v['name'], v['type']
+            self.declare(n, t, 'argument')
+            args.extend((n, t))
+        return_type = self.expression_type(body)
+        self.enviroment_stack.pop()
+        #print( ['fn', args, return_type, ['return', body]])
+        #exit()
+        return ['fn', args, return_type, ['return', body]]
+
+    def split_format_block(self, block):
+        #print(block)
+        if block.find(':') >= 0:
+            var_name, format_exp = block.split(':')
+        else:
+            var_name, format_exp = block, self.default_format_exp(block)
+        return var_name, '%%%s' % format_exp
+
+    def compile_anonymous_function(self, args, return_type, *body):
+        #print(args, return_type, body)
+        fn_name = self.genvar('anonymous_function')
+        self.register_function(('fn', fn_name, args, return_type))
+        cs = self.compile_def(fn_name, args, return_type, *body)
+        self.compiled_functions.append(cs)
+        return fn_name
 
 
 
