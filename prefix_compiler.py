@@ -69,31 +69,10 @@ def compile_range(start, end=None, step='1'):
         start = '0'
     return [start, end, step]
 
-def compile_bind(exp):
-    if isinstance(exp, str):
-        return exp, ['Int']
-    else:
-        try:
-            bind_name, bind_type = exp
-        except ValueError:
-            raise SyntaxError('Invalid bind expression')
-
-        if isinstance(bind_type, str):
-            return bind_name, [bind_type]
-        else:
-            return bind_name, bind_type
-
 def compile_array(length, array_type, initial_values=None):
     raise SyntaxError('how did I get here/')
     return '{asdf %s%s}' % (length, ', '.join(initial_values))
 
-
-def make_constructor(arg):
-    et = expression_type(arg)
-    if isinstance(et, list) and len(et) == 1:
-        return [et[0], arg]
-    else:
-        return ['make_ctype', et, arg]
 
 def compile_increment(pre='', post='', exp=''):
     declare(root_variable(exp), ['int'])
@@ -253,11 +232,6 @@ def indent(elem, level=0):
             else:
                 indent(e, level)
 
-def in_scope(name):
-    name = root_variable(name)
-    s = scope_stack[-1]
-    return name in s.keys()
-
 def root_variable(name):
     while isinstance(name, list):
         if name[0] in ['*', '->', 'deref', 'array_offset']:
@@ -267,11 +241,6 @@ def root_variable(name):
 
     return name
 
-def variable_type(name):
-    s = scope_stack[-1]
-    var_type, _ = s[name]
-    return var_type
-
 def is_deref(rvalue):
     return isinstance(rvalue, list) and rvalue[0] == 'deref'
 
@@ -280,19 +249,6 @@ def is_obj_constructor(rvalue):
 
 def is_obj(rvalue):
     return isinstance(rvalue, str) and is_uppercase(rvalue[0])
-
-def function_return_type(function_name):
-    fn = functions[function_name]
-    args, return_type = fn
-    return return_type
-
-def field_type(obj, field):
-    vt = variable_type(obj)
-    if is_obj_variable(vt):
-        obj_name = obj_name_from_variable_type(vt)
-        return objects[obj_name][field]
-    else:
-        raise TypeError('not an object', obj)
 
 def obj_name_from_variable_type(var_type):
     if isinstance(var_type, list):
@@ -307,9 +263,6 @@ def is_obj_variable(var_type):
         return var_type[0] == '*' and is_obj(var_type[1])
     else:
         is_obj(var_type)
-
-def is_infix_operator(op):
-    return op in infix_operators
 
 def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -966,7 +919,7 @@ class Compiler:
         return ', '.join(new_args)
 
     def compile_each(self, bind_expression, list_expression, *body):
-        bind_name, bind_type = compile_bind(bind_expression)
+        bind_name, bind_type = parse_bind(bind_expression)
         head, *tail = list_expression
         et = self.expression_type(list_expression)
         if head == 'range':
@@ -1596,6 +1549,21 @@ def parse_type(type_expression):
         return [type_expression]
     else:
         return type_expression
+
+def parse_bind(exp):
+    if isinstance(exp, str):
+        return exp, ['Int']
+    else:
+        try:
+            bind_name, bind_type = exp
+        except ValueError:
+            raise SyntaxError('Invalid bind expression')
+
+        if isinstance(bind_type, str):
+            return bind_name, [bind_type]
+        else:
+            return bind_name, bind_type
+
 
 if __name__ == '__main__':
     #logging.basicConfig(level=logging.INFO)
