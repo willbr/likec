@@ -7,22 +7,24 @@ import re
 import logging
 import pdb
 
-from prefix_parser import ast
+from prefix_parser import ast, map_tree
+from prefix_tokenizer import Token
 from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
 
 def scope(fn):
     def wrapper(self, *args):
-        function_name, *_ = args
-        logging.info('scope:enter:%s', function_name)
+        function_name_token, *_ = args
+        function_name = function_name_token.value
+        logging.info('scope:scope>>>: %s', function_name)
         self.enviroment_stack.append(collections.OrderedDict())
 
         r = fn(self, *args)
 
         #pp(self.current_scope())
 
-        logging.info('scope:exit :%s', function_name)
+        logging.info('scope:scope<<<: %s', function_name)
         self.enviroment_stack.pop()
         return r
     return wrapper
@@ -202,29 +204,32 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
-
 def escape(s):
     if isinstance(s, list):
         return [escape(a) for a in s]
     else:
-        if s == '':
-            return s
-        elif s in ['->']:
-            return s
-        elif s[0] in '\'"-':
-            return s
+        return escape_token(s)
+
+def escape_token(t):
+    v = t.value
+    if v in ['', '->']:
+        pass
+    elif v[0] in '\'"-':
+        pass
+    else:
         replacements = {
                 '-': '_',
                 '?': '_qm_',
                 }
         regexp = '(%s)' % '|'.join(map(re.escape, replacements.keys()))
-        new_s = []
-        for a in re.split(regexp, s):
+        new_v = []
+        for a in re.split(regexp, v):
             try:
-                new_s.append(replacements[a])
+                new_v.append(replacements[a])
             except KeyError:
-                new_s.append(a)
-        return ''.join(new_s)
+                new_v.append(a)
+        v = ''.join(new_v)
+    return t._replace(value=v)
 
 ###########################################################
 
@@ -400,6 +405,7 @@ class Compiler:
         self.write_output()
 
     def add_standard_code(self):
+        logging.info(self.__name__)
         self.add_file('standard_code.likec')
 
     def add_file(self, filename):
@@ -416,23 +422,24 @@ class Compiler:
 
     def extract_type_information(self):
         for statement_ast in self.code_ast:
-            head = statement_ast[0]
+            head = statement_ast[0].value
             if head == 'obj':
                 self.register_object(statement_ast)
             elif head == 'def':
                 self.register_function(statement_ast)
 
     def register_function(self, ast):
-        _, function_name, args, raw_return_type, *_ = ast
+        _, func_name_token, args, raw_return_type, *_ = ast
+        func_name = func_name_token.value
         return_type = parse_type(raw_return_type)
 
-        if function_name in self.keyword_compile_functions:
-            raise SyntaxError('Can\'t redefine keyword: %s' % function_name)
-        if function_name in self.functions:
-            raise SyntaxError('function redefined: %s' % function_name)
+        if func_name in self.keyword_compile_functions:
+            raise SyntaxError('Can\'t redefine keyword: %s' % func_name)
+        if func_name in self.functions:
+            raise SyntaxError('function redefined: %s' % func_name)
         else:
-            self.functions[function_name] = Function(
-                    function_name,
+            self.functions[func_name] = Function(
+                    func_name,
                     args,
                     return_type)
 
@@ -482,7 +489,8 @@ class Compiler:
 
     def compile_statements(self):
         for branch in self.code_ast:
-            if branch[0] in ['def', 'obj', 'typedef']:
+            head = branch[0].value
+            if head in ['c_def', 'def', 'obj', 'typedef']:
                 cs = self.compile_statement(branch)
                 if cs:
                     self.compiled_functions.append(cs)
@@ -491,13 +499,18 @@ class Compiler:
 
     def compile_main(self):
         if 'main' in self.functions and self.global_code:
-            lines_str = ('\n'.join(str(l) for l in main_lines))
+            lines_str = ('\n'.join(str(l) for l in self.global_code))
             raise SyntaxError('expressions found outside of main function:\n%s' % lines_str)
-
-        self.compile_c_def ('main',
-                ['argc', 'int', 'argv', ['CArray', '*', 'char']],
-                'int',
-                *self.global_code)
+        elif 'main' in self.functions:
+            return
+        else:
+            raise Exception
+            # all arguments need to be tokens
+            self.compile_c_def (
+                    'main',
+                    ['argc', 'int', 'argv', ['CArray', '*', 'char']],
+                    'int',
+                    *self.global_code)
 
     def compile_statement(self, statement):
         c = self.compile_expression(statement)
@@ -510,12 +523,21 @@ class Compiler:
             return c
 
     def compile_expression(self, statements):
-        if isinstance(statements, str):
+        if isinstance(statements, Token):
+            logging.info(
+                    'compile_expression: %s',
+                    statements,
+                    )
             return CompiledExpression(
-                    exp=self.expand_variable(statements),
+                    exp=self.expand_variable(statements.value),
                     )
         else:
-            func_name, *args = statements
+            logging.info(
+                    'compile_expression: %s',
+                    map_tree(lambda x: x.value, statements),
+                    )
+            token_func_name, *args = statements
+            func_name = token_func_name.value
             if func_name in self.keyword_compile_functions.keys():
                 return self.keyword_compile_functions[func_name](*args)
             else:
@@ -524,14 +546,20 @@ class Compiler:
 
     @scope
     def compile_c_def(self,
-            function_name,
+            function_name_token,
             args,
-            return_type,
+            return_type_exp,
             *body
             ):
+
+        function_name = function_name_token.value
+        return_type = parse_type(return_type_exp)
+        logging.info('compile_c_def: %s', function_name)
+
         call_sig = '{}({})'.format(
             function_name,
-            self.compile_def_arguments(args))
+            self.compile_def_arguments(args),
+            )
         
         #print(
                 #function_name,
@@ -625,7 +653,11 @@ class Compiler:
         else:
             return self.compile_new(object_name, *args)
 
-    def compile_call(self, function_name, *args):
+    def compile_call(self,
+            function_name,
+            *args):
+        pre = []
+        logging.info('compile_call: %s', function_name)
         #print(
                 #function_name,
                 #*args
@@ -639,9 +671,19 @@ class Compiler:
                 return self.compile_method(function_name, *args)
             except KeyError:
                 pass
-            compiled_args = [self.compile_expression(a) for a in args]
             self.function_calls.append(function_name)
-            return '%s(%s)' % (function_name, ', '.join(compiled_args))
+
+            compiled_args = []
+            for arg in args:
+                ce = self.compile_expression(arg)
+                pre.append(ce.pre)
+                compiled_args.append(ce.exp)
+            exp = '%s(%s)' % (function_name, ', '.join(compiled_args))
+
+        return CompiledExpression(
+                pre=pre,
+                exp=exp,
+                )
 
     def write_output(self):
         self.print_includes()
@@ -1433,6 +1475,7 @@ def {fn} (a {vt}) (* void)
 
     def compile_infix(self, operator, *operands):
         compiled_operands = [self.compile_expression(o) for o in operands]
+        print(compiled_operands)
         pre = [ce.pre for ce in compiled_operands]
         exps = [ce.exp for ce in compiled_operands]
         exp = '(%s)' % (' %s ' % operator).join(exps)
@@ -1579,10 +1622,10 @@ def {fn} (a {vt}) (* void)
 
 
 def parse_type(type_expression):
-    if isinstance(type_expression, str):
-        return [type_expression]
+    if isinstance(type_expression, Token):
+        return [type_expression.value]
     else:
-        return type_expression
+        return values(type_expression)
 
 def parse_bind(exp):
     if isinstance(exp, str):
@@ -1600,7 +1643,7 @@ def parse_bind(exp):
 
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()

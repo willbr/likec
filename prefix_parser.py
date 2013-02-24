@@ -11,7 +11,7 @@ def main():
     statements = parse_tokens(ts)
     #print('\n')
     for s in statements:
-        print(indent(s))
+        print(indent(map_tree(lambda x: x.value, s)))
         print()
 
 def ast(text):
@@ -38,7 +38,7 @@ def parse_lexp(token_stream):
         elif token_stream.token.typ == 'COMMENT':
             token_stream.advance()
         else:
-            line.append(token_stream.token.value)
+            line.append(token_stream.token)
             token_stream.advance()
     token_stream.advance()
 
@@ -79,7 +79,7 @@ def parse_sexp(token_stream):
         elif token_stream.token.typ == 'COMMENT':
             token_stream.advance()
         else:
-            sexp.append(token_stream.token.value)
+            sexp.append(token_stream.token)
             token_stream.advance()
 
     token_stream.skip('CLOSE_PAREN')
@@ -123,6 +123,12 @@ def to_string(e):
         return '(%s)' % ' '.join(to_string(t) for t in e)
     else:
         return e
+
+def map_tree(fn, tree):
+    if isinstance(tree, list):
+        return [map_tree(fn, branch) for branch in tree]
+    else:
+        return fn(tree)
 
 if __name__ == '__main__':
     main()

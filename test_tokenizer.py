@@ -1,6 +1,6 @@
 import unittest
 import prefix_tokenizer
-from prefix_tokenizer import split_id
+from prefix_tokenizer import split_id, values, types
 
 class TestTokenizer_split_id(unittest.TestCase):
 
@@ -115,11 +115,6 @@ reduce {+ $ $} a
                     '\n'
                     ]
                 )
-def values(tokens):
-    return [t.value for t in tokens]
-
-def types(tokens):
-    return [t.typ for t in tokens]
 
 if __name__ == '__main__':
     unittest.main()

@@ -243,6 +243,12 @@ def split_id(value):
 def expected(wanted, found):
     raise SyntaxError('wanted: %s; found: %s' % (wanted, found))
 
+def values(tokens):
+    return [t.value for t in tokens]
+
+def types(tokens):
+    return [t.typ for t in tokens]
+
 if __name__ == "__main__":
     input_text = open(argv[1]).read()
 
