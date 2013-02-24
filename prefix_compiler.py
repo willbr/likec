@@ -248,7 +248,10 @@ class CompiledExpression:
     def compile(self):
         compiled = []
         for p in self.pre:
-            compiled.extend(p)
+            if isinstance(p, str):
+                compiled.append(p + ';')
+            else:
+                compiled.extend(p)
         compiled.append(self.exp + ';')
         return compiled
 
