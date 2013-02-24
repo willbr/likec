@@ -228,6 +228,31 @@ def escape(s):
 
 ###########################################################
 
+
+class CompiledExpression:
+    def __init__(self,
+            exp,
+            pre=[],
+            exp_type=['Int'],
+            ):
+        self.pre = pre
+        self.exp = exp
+        self.exp_type = exp_type
+
+    def __repr__(self):
+        return '<CompiledExpression pre: %s exp: "%s">' % (
+                self.pre,
+                self.exp,
+                )
+
+    def compile(self):
+        compiled = []
+        for p in self.pre:
+            compiled.extend(p)
+        compiled.append(self.exp + ';')
+        return compiled
+
+
 class Function:
     compiled_body = None
     compiled_header = None
@@ -256,6 +281,7 @@ class Function:
                 self.compiled_body,
                 '}',
                 ]
+
 
 class Compiler:
 
@@ -288,7 +314,7 @@ class Compiler:
         self.genvar_counter = 1000
 
         self.keyword_compile_functions = {
-                'def': self.compile_def,
+                'c_def': self.compile_c_def,
                 'obj': self.compile_obj,
                 '='  : self.compile_assignment,
                 'while': self.compile_while,
@@ -465,10 +491,7 @@ class Compiler:
             lines_str = ('\n'.join(str(l) for l in main_lines))
             raise SyntaxError('expressions found outside of main function:\n%s' % lines_str)
 
-        if self.global_code[-1][0] != 'return':
-            self.global_code.append(['return', '0'])
-
-        self.compile_def ('main',
+        self.compile_c_def ('main',
                 ['argc', 'int', 'argv', ['CArray', '*', 'char']],
                 'int',
                 *self.global_code)
@@ -484,9 +507,10 @@ class Compiler:
             return c
 
     def compile_expression(self, statements):
-        #print('statements', statements)
         if isinstance(statements, str):
-            return self.expand_variable(statements)
+            return CompiledExpression(
+                    exp=self.expand_variable(statements),
+                    )
         else:
             func_name, *args = statements
             if func_name in self.keyword_compile_functions.keys():
@@ -496,7 +520,7 @@ class Compiler:
 
 
     @scope
-    def compile_def(self,
+    def compile_c_def(self,
             function_name,
             args,
             return_type,
@@ -506,18 +530,14 @@ class Compiler:
             function_name,
             self.compile_def_arguments(args))
         
-        if function_name == 'main':
-            if body[-1][0] != 'return':
-                body = list(body)
-                body.append(['return', '0'])
-
         #print(
                 #function_name,
                 #args,
                 #return_type,
                 #)
 
-        compiled_body = self.compile_block(body)
+        result_exp = self.compile_begin(*body)
+        compiled_body = result_exp.compile()
         new_body = self.compile_variable_declarations() + compiled_body
 
         function_header = self.compile_variable(call_sig, return_type)
@@ -562,22 +582,19 @@ class Compiler:
             self.declare(n, t, 'argument')
         return ', '.join(self.compile_variable(n, t) for n, t in paired_args)
 
-    def compile_block(self, block):
-        lines = []
-        r = (self.compile_statement(line) for line in block)
-        for e in r:
-            if isinstance(e, str):
-                lines.append(e)
-            elif isinstance(e, list):
-                for a in e: 
-                    if isinstance(a, list):
-                        lines.append(a)
-                    else:
-                        if a[-1] in '{}:':
-                            lines.append(a)
-                        else:
-                            lines.append(a + ';')
-        return lines
+    def compile_begin(self,
+            *expressions
+            ):
+        pre = []
+        for expression in expressions:
+            compiled_exp = self.compile_expression(expression)
+            pre.append(compiled_exp.pre)
+            pre.append(compiled_exp.exp)
+        final_expression = pre.pop()
+        return CompiledExpression(
+                pre=pre,
+                exp=final_expression,
+                )
 
     def variable_type(self, name):
         s = self.enviroment_stack[-1]
@@ -717,35 +734,15 @@ class Compiler:
                 return '%s %s' % (eo, name)
 
     def compile_assignment(self, lvalue, rvalue):
-        lines = []
-        post_lines = []
-
-        if is_obj_constructor(rvalue):
-            obj_type, *args = rvalue
-            if obj_type == 'List':
-                rvalue = rvalue[:1]
-                for arg in args:
-                    post_lines.append(['method', lvalue, 'append', arg])
-            elif obj_type == 'Array':
-                #print(lvalue, rvalue)
-                self.declare(lvalue, rvalue)
-                rvalue = None
-
-        if rvalue:
-            et = self.expression_type(rvalue)
-            self.declare(lvalue, et)
-
-            lines.insert(0, '(%s = %s)' % (
-                self.expand_variable(lvalue),
-                self.compile_expression(rvalue)))
-
-            for line in post_lines:
-                lines.append(self.compile_expression(line))
-
-        if len(lines) == 1:
-            return lines[0]
-        else:
-            return lines
+        ce_r = self.compile_expression(rvalue)
+        exp = '%s = %s' % (
+                lvalue,
+                ce_r.exp,
+                )
+        return CompiledExpression(
+                pre=ce_r.pre,
+                exp=exp,
+                )
 
     def expression_type(self, exp):
         #print(exp)
@@ -813,6 +810,8 @@ class Compiler:
                 return tail[1]
             elif head == 'in':
                 return ['Int']
+            elif head in 'if':
+                return self.expression_type(tail[1])
             else:
                 if head in self.functions:
                     return self.functions[head].return_type
@@ -1342,7 +1341,9 @@ def {rfn} (list (* List)) {rt}
                 '}']
 
     def compile_return(self, exp):
-        return 'return %s' % self.compile_expression(exp)
+        return CompiledExpression(
+                'return %s;' % self.compile_expression(exp)
+                )
 
     def compile_typedef(self, name, typ):
         #print('typedef', name, typ)
@@ -1429,7 +1430,13 @@ def {fn} (a {vt}) (* void)
 
     def compile_infix(self, operator, *operands):
         compiled_operands = [self.compile_expression(o) for o in operands]
-        return '(%s)' % (' %s ' % operator).join(compiled_operands)
+        pre = [ce.pre for ce in compiled_operands]
+        exps = [ce.exp for ce in compiled_operands]
+        exp = '(%s)' % (' %s ' % operator).join(exps)
+        return CompiledExpression(
+                pre=pre,
+                exp=exp,
+                )
 
     def is_infix_operator(self, op):
         return op in self.infix_operators
@@ -1513,11 +1520,43 @@ def {fn} (a {vt}) (* void)
         else:
             raise TypeError(a, b)
 
-    def compile_if(self, pred, *body):
-        return [
-            'if (%s) {' % self.compile_expression(pred),
-            self.compile_block(body),
-            '}']
+    def compile_if(self,
+            predicate,
+            consequent,
+            alternative,
+            ):
+
+        pre = []
+        return_variable = self.genvar('if')
+
+        ce_predicate = self.compile_expression(predicate)
+        ce_consequent = self.compile_expression(
+                    [
+                        '=',
+                        return_variable,
+                        consequent,
+                        ]
+                    )
+        ce_alternative = self.compile_expression(
+                    [
+                        '=',
+                        return_variable,
+                        alternative,
+                        ]
+                    )
+
+        pre.extend([
+            'if (%s) {' % ce_predicate.exp,
+            ce_consequent.compile(),
+            '} else {',
+            ce_alternative.compile(),
+            '}',
+            ])
+
+        return CompiledExpression(
+                pre=pre,
+                exp=return_variable,
+                )
 
     def compile_repeat(self, count, *body):
         counter_name = self.genvar('repeat')
@@ -1561,7 +1600,7 @@ if __name__ == '__main__':
     #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
-    pc.add_standard_code()
+    #pc.add_standard_code()
     pc.add_file(input_filename)
     pc.compile()
     #main()
