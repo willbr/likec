@@ -87,3 +87,27 @@ void test(void) {
 test()
 a = 0
 
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+= a {+ $ $}
+
+def a (n int) int (+ n n)
+= a (fn (n int) int (+ n n))
+
+============================
+
+c-def a (n int) int (return (+ n n))
+= a (c-fn (n int) int (return (+ n n)))
+
+
+def a (n int) int
+    do
+        (+ n n)
+
+
