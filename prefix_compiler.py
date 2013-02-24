@@ -7,7 +7,7 @@ import re
 import logging
 import pdb
 
-from prefix_parser import ast, map_tree
+from prefix_parser import ast, map_tree_to_values
 from prefix_tokenizer import Token
 from sys import argv
 
@@ -405,7 +405,7 @@ class Compiler:
         self.write_output()
 
     def add_standard_code(self):
-        logging.info(self.__name__)
+        logging.info('add_standard_code')
         self.add_file('standard_code.likec')
 
     def add_file(self, filename):
@@ -444,14 +444,15 @@ class Compiler:
                     return_type)
 
     def register_object(self, ast):
-        _, obj_name, *body = ast
+        _, obj_name_token, *body = ast
+        obj_name = obj_name_token.value
 
         methods = []
 
         for exp in body:
             head, *tail = exp
-            if head == 'def':
-                method_name = tail[0]
+            if head.value == 'def':
+                method_name = tail[0].value
                 methods.append(method_name)
                 self.register_method(obj_name, tail)
             else:
@@ -534,7 +535,7 @@ class Compiler:
         else:
             logging.info(
                     'compile_expression: %s',
-                    map_tree(lambda x: x.value, statements),
+                    map_tree_to_values(statements),
                     )
             token_func_name, *args = statements
             func_name = token_func_name.value
@@ -1625,7 +1626,7 @@ def parse_type(type_expression):
     if isinstance(type_expression, Token):
         return [type_expression.value]
     else:
-        return values(type_expression)
+        return map_tree_to_values(type_expression)
 
 def parse_bind(exp):
     if isinstance(exp, str):

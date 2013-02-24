@@ -1,24 +1,26 @@
 import unittest
-from prefix_parser import ast
+from prefix_parser import ast, map_tree_to_values
 
 class TestPrefixParser(unittest.TestCase):
 
     def test_lexp_def_function(self):
-        self.assertEqual(
-                ast('''
-def main
+        a = map_tree_to_values(ast('''
+c-def main
     prn "hello"
-                ''')[0],
-                ['def', 'main', [], 'void', ['prn','"hello"']]
+                ''')[0])
+
+        self.assertEqual(
+                a,
+                ['c-def', 'main', [], ['void'], ['prn','"hello"']]
                 )
 
     def test_sexp_def_function(self):
         self.assertEqual(
-                ast('''
-(def main () void
+                map_tree_to_values(ast('''
+(c-def main () void
     (prn "hello"))
-                ''')[0],
-                ['def', 'main', [], 'void', ['prn','"hello"']]
+                ''')[0]),
+                ['c-def', 'main', [], 'void', ['prn','"hello"']]
                 )
 
     def test_ast_empty(self):
@@ -30,19 +32,19 @@ def main
 
     def test_ast_single_statement(self):
         self.assertEqual(
-                ast('''
+                map_tree_to_values(ast('''
 = a 5
-'''),
+''')),
                 [['=', 'a', '5']]
                 )
 
     def test_ast_block(self):
         self.assertEqual(
-                ast('''
-def test
+                map_tree_to_values(ast('''
+c-def test
     return 5
-'''),
-                [['def', 'test', [], 'void',
+''')),
+                [['c-def', 'test', [], ['void'],
                     ['return', '5']]]
                 )
 

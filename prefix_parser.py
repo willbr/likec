@@ -1,5 +1,5 @@
 import pprint
-from prefix_tokenizer import Tokenizer
+from prefix_tokenizer import Tokenizer, Token
 from sys import argv
 
 pp = pprint.PrettyPrinter(indent=2).pprint
@@ -11,7 +11,7 @@ def main():
     statements = parse_tokens(ts)
     #print('\n')
     for s in statements:
-        print(indent(map_tree(lambda x: x.value, s)))
+        print(indent(map_tree_to_values(s)))
         print()
 
 def ast(text):
@@ -42,15 +42,24 @@ def parse_lexp(token_stream):
             token_stream.advance()
     token_stream.advance()
 
+    first_token = line[0] if line else None
+
     if not line:
         pass
-    elif line[0] == 'def':
-        function_name = line[1]
+    elif first_token.value == 'c-def':
         length = len(line)
+        return_type = [
+                Token('ID',
+                    'void',
+                    first_token.line,
+                    first_token.column,
+                    ),
+                ]
         if length == 2:
-            line.extend(([], 'void'))
+            arguments = []
+            line.extend((arguments, return_type))
         elif length == 3:
-            line.append('void')
+            line.append(return_type)
         else:
             pass
 
@@ -129,6 +138,12 @@ def map_tree(fn, tree):
         return [map_tree(fn, branch) for branch in tree]
     else:
         return fn(tree)
+
+def map_tree_to_values(tree):
+    return map_tree(
+            lambda x: x.value,
+            tree,
+            )
 
 if __name__ == '__main__':
     main()
