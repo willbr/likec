@@ -25,10 +25,31 @@ class TestPrefixCompiler(unittest.TestCase):
                 parse_to_values('''
 c-def hyphen-test
     prn "hello"
-                ''')[0],
+''')[0],
                 ['c_def', 'hyphen_test', [], ['void'], ['prn','"hello"']]
                 )
 
+
+    def test_compile_c_def(self):
+        c = self.compiler
+        c.compile_code('''
+c-def main
+    puts "hello"
+''')
+
+        f = c.functions['main']
+
+        self.assertEqual(
+                f.compiled(),
+                [
+                    'void main()',
+                    '{',
+                    [
+                        'puts("hello");',
+                        ],
+                    '}',
+                    ],
+                )
 
 if __name__ == '__main__':
     unittest.main()

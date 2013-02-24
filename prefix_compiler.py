@@ -525,10 +525,7 @@ class Compiler:
 
     def compile_expression(self, statements):
         if isinstance(statements, Token):
-            logging.info(
-                    'compile_expression: %s',
-                    statements,
-                    )
+            logging.info('compile_expression: %s', statements,)
             return CompiledExpression(
                     exp=self.expand_variable(statements.value),
                     )
@@ -577,17 +574,17 @@ class Compiler:
         if function_name == 'main':
             if 'main' in self.functions:
                 raise NameError('main is defined twice')
-            else:
-                f = Function(
-                        'main',
-                        args,
-                        return_type,
-                        )
 
-                f.compiled_header = function_header
-                f.compiled_body = new_body
+            f = Function(
+                    'main',
+                    args,
+                    return_type,
+                    )
 
-                self.functions['main'] = f
+            f.compiled_header = function_header
+            f.compiled_body = new_body
+
+            self.functions['main'] = f
         else:
             #print('=======================')
             #pp(self.functions)
@@ -659,14 +656,9 @@ class Compiler:
             *args):
         pre = []
         logging.info('compile_call: %s', function_name)
-        #print(
-                #function_name,
-                #*args
-                #)
         if is_obj(function_name):
             return self.compile_constructor(function_name, *args)
         else:
-            #print(function_name, function_name in self.current_scope())
             try:
                 vt = self.variable_type(function_name)
                 return self.compile_method(function_name, *args)
@@ -677,7 +669,6 @@ class Compiler:
             compiled_args = []
             for arg in args:
                 ce = self.compile_expression(arg)
-                pre.append(ce.pre)
                 compiled_args.append(ce.exp)
             exp = '%s(%s)' % (function_name, ', '.join(compiled_args))
 
