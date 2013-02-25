@@ -69,6 +69,35 @@ c-def main
                     ],
                 )
 
+    def test_redefine_error(self):
+        c = self.compiler
+        self.assertRaises(
+                NameError,
+                c.compile_code,
+            '''
+c-def main
+    puts "hello"
+
+c-def main
+    puts "hello"
+''',
+                )
+
+    def test_redefine_error_global_code(self):
+        c = self.compiler
+
+        c.compile_code(
+            '''
+c-def main
+    puts "hello"
+
+puts "hello"
+''')
+        self.assertRaises(
+                SyntaxError,
+                c.compile_main,
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

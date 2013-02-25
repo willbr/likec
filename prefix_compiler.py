@@ -137,10 +137,11 @@ class Function:
         self.is_method = False
 
     def __repr__(self):
-        return "<Function {} {} => {}>".format(
+        return "<Function {} ( {} ) => {}, compiled:{}>".format(
                 self.name,
                 self.arguments,
                 self.return_type,
+                self.compiled,
                 )
 
     def compile(self):
@@ -256,12 +257,15 @@ class Compiler:
                     return_type)
 
     def compile_statements(self):
+        r = []
         for branch in self.code_ast:
             head = branch[0].value
             if head in ['c_def', 'def', 'obj', 'typedef']:
                 cs = self.compile_statement(branch)
+                r.append(cs)
             else:
                 self.global_code.append(branch)
+        return r
 
     def compile_main(self):
         if 'main' in self.functions and self.global_code:
@@ -694,12 +698,9 @@ class Compiler:
         self.code_ast = []
         self.parse_code()
         self.extract_type_information()
-        r = []
-        for branch in self.code_ast:
-            cs = self.compile_statement(branch)
-            if cs:
-                r.append(cs)
+        r = self.compile_statements()
         return r
+
 
     def type_to_sexp(self, t):
         if isinstance(t, list):
