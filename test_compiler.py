@@ -58,7 +58,7 @@ c-def main
         f = c.functions['test']
 
         self.assertEqual(
-                f.compiled(),
+                f.compile(),
                 [
                     'int test()',
                     '{',

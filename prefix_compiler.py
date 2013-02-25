@@ -122,10 +122,6 @@ class CompiledExpression:
 
 
 class Function:
-    compiled_body = None
-    compiled_header = None
-    is_method = False
-
     def __init__(self,
             name,
             arguments,
@@ -135,6 +131,11 @@ class Function:
         self.arguments = arguments
         self.return_type = return_type
 
+        self.compiled = False
+        self.compiled_body = None
+        self.compiled_header = None
+        self.is_method = False
+
     def __repr__(self):
         return "<Function {} {} => {}>".format(
                 self.name,
@@ -142,7 +143,7 @@ class Function:
                 self.return_type,
                 )
 
-    def compiled(self):
+    def compile(self):
         return [
                 self.compiled_header,
                 '{',
@@ -224,6 +225,7 @@ class Compiler:
 
     def read_files(self):
         for filename in self.input_files:
+            logging.info('read_files: %s', filename)
             with open(filename) as f:
                 self.code.append(f.read())
 
@@ -234,15 +236,14 @@ class Compiler:
     def extract_type_information(self):
         for statement_ast in self.code_ast:
             head = statement_ast[0].value
-            if head == 'obj':
-                self.register_object(statement_ast)
-            elif head == 'def':
+            if head == 'def':
                 self.register_function(statement_ast)
 
     def register_function(self, ast):
         _, func_name_token, args, raw_return_type, *_ = ast
         func_name = func_name_token.value
         return_type = parse_type(raw_return_type)
+        logging.info('register_function: %s', func_name)
 
         if func_name in self.keyword_compile_functions:
             raise SyntaxError('Can\'t redefine keyword: %s' % func_name)
@@ -361,7 +362,7 @@ class Compiler:
             function_name_token,
             args,
             return_type_exp,
-            body_expression,
+            *body
             ):
 
         function_name = function_name_token.value
@@ -372,39 +373,21 @@ class Compiler:
             function_name,
             self.compile_def_arguments(args),
             )
-        
-        #print(
-                #function_name,
-                #args,
-                #return_type,
-                #)
 
+        if len(body) > 1:
+            raise SyntaxError('function body is more than one expression')
+        body_expression = body[0]
+        
         result_exp = self.compile_return(body_expression)
         compiled_body = result_exp.compile()
         new_body = self.compile_variable_declarations() + compiled_body
 
         function_header = self.compile_variable(call_sig, return_type)
 
-        if function_name == 'main':
-            if 'main' in self.functions:
-                raise NameError('main is defined twice')
-
-            f = Function(
-                    'main',
-                    args,
-                    return_type,
-                    )
-
-            f.compiled_header = function_header
-            f.compiled_body = new_body
-
-            self.functions['main'] = f
-        else:
-            #print('=======================')
-            #pp(self.functions)
-            f = self.functions[function_name]
-            f.compiled_header = function_header
-            f.compiled_body = new_body
+        f = self.functions[function_name]
+        f.compiled_header = function_header
+        f.compiled_body = new_body
+        f.compiled = True
 
     def compile_variable_declarations(self):
         declarations = []
@@ -521,7 +504,7 @@ class Compiler:
             indent(f.compiled())
             print()
 
-        indent(main_function.compiled())
+        indent(main_function.compile())
         print()
 
 
