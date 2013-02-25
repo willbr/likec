@@ -51,6 +51,24 @@ c-def main
                     ],
                 )
 
+    def test_compile_c_def(self):
+        c = self.compiler
+        c.compile_code('(def test () int 5)')
+
+        f = c.functions['test']
+
+        self.assertEqual(
+                f.compiled(),
+                [
+                    'int test()',
+                    '{',
+                    [
+                        'return 5;',
+                        ],
+                    '}',
+                    ],
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -172,6 +172,7 @@ class Compiler:
 
         self.keyword_compile_functions = {
                 'c_def': self.compile_c_def,
+                'def': self.compile_def,
                 '='  : self.compile_assignment,
                 'if': self.compile_if,
                 'return': self.compile_return,
@@ -329,6 +330,56 @@ class Compiler:
                 #)
 
         result_exp = self.compile_begin(*body)
+        compiled_body = result_exp.compile()
+        new_body = self.compile_variable_declarations() + compiled_body
+
+        function_header = self.compile_variable(call_sig, return_type)
+
+        if function_name == 'main':
+            if 'main' in self.functions:
+                raise NameError('main is defined twice')
+
+            f = Function(
+                    'main',
+                    args,
+                    return_type,
+                    )
+
+            f.compiled_header = function_header
+            f.compiled_body = new_body
+
+            self.functions['main'] = f
+        else:
+            #print('=======================')
+            #pp(self.functions)
+            f = self.functions[function_name]
+            f.compiled_header = function_header
+            f.compiled_body = new_body
+
+    @scope
+    def compile_def(self,
+            function_name_token,
+            args,
+            return_type_exp,
+            body_expression,
+            ):
+
+        function_name = function_name_token.value
+        return_type = parse_type(return_type_exp)
+        logging.info('compile_c_def: %s', function_name)
+
+        call_sig = '{}({})'.format(
+            function_name,
+            self.compile_def_arguments(args),
+            )
+        
+        #print(
+                #function_name,
+                #args,
+                #return_type,
+                #)
+
+        result_exp = self.compile_return(body_expression)
         compiled_body = result_exp.compile()
         new_body = self.compile_variable_declarations() + compiled_body
 
@@ -709,8 +760,10 @@ class Compiler:
                 pass
 
     def compile_return(self, exp):
+        ce = self.compile_expression(exp)
         return CompiledExpression(
-                'return %s;' % self.compile_expression(exp)
+                pre=ce.pre,
+                exp='return %s' % ce.exp,
                 )
 
     def print_includes(self):
