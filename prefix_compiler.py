@@ -100,6 +100,11 @@ class CompiledExpression:
         self.exp_type = exp_type
 
     def __repr__(self):
+        s = ['CompiledExpression']
+        if self.pre:
+            s.append('pre: %s' % self.pre)
+        s.append('exp: %s' % self.exp)
+        return '<%s>' % ' '.join(s)
         return '<CompiledExpression pre: %s exp: "%s">' % (
                 self.pre,
                 self.exp,
@@ -757,7 +762,7 @@ class Compiler:
 
     def compile_infix(self, operator, *operands):
         compiled_operands = [self.compile_expression(o) for o in operands]
-        print(compiled_operands)
+        logging.info("compile_infix: %s", compiled_operands)
         pre = [ce.pre for ce in compiled_operands]
         exps = [ce.exp for ce in compiled_operands]
         exp = '(%s)' % (' %s ' % operator).join(exps)
