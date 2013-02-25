@@ -11,7 +11,7 @@ c-def main
 
         self.assertEqual(
                 a,
-                ['c-def', 'main', [], ['void'], ['prn','"hello"']]
+                ['c-def', 'main', [], 'void', ['prn','"hello"']]
                 )
 
     def test_sexp_def_function(self):
@@ -21,6 +21,15 @@ c-def main
     (prn "hello"))
                 ''')[0]),
                 ['c-def', 'main', [], 'void', ['prn','"hello"']]
+                )
+
+    def test_sexp_def_function(self):
+        self.assertEqual(
+                map_tree_to_values(ast('''
+def test
+    + 5 5
+                ''')[0]),
+                ['def', 'test', [], 'int', ['+','5', '5']]
                 )
 
     def test_ast_empty(self):
@@ -44,7 +53,7 @@ c-def main
 c-def test
     return 5
 ''')),
-                [['c-def', 'test', [], ['void'],
+                [['c-def', 'test', [], 'void',
                     ['return', '5']]]
                 )
 

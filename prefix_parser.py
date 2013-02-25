@@ -46,15 +46,15 @@ def parse_lexp(token_stream):
 
     if not line:
         pass
-    elif first_token.value == 'c-def':
+    elif first_token.value in ['c-def', 'def']:
         length = len(line)
-        return_type = [
-                Token('ID',
-                    'void',
-                    first_token.line,
-                    first_token.column,
-                    ),
-                ]
+        c_type = 'int' if first_token.value == 'def' else 'void'
+        return_type = Token(
+                'ID',
+                c_type,
+                first_token.line,
+                first_token.column,
+                )
         if length == 2:
             arguments = []
             line.extend((arguments, return_type))

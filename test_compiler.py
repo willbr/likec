@@ -26,7 +26,7 @@ class TestPrefixCompiler(unittest.TestCase):
 c-def hyphen-test
     prn "hello"
 ''')[0],
-                ['c_def', 'hyphen_test', [], ['void'], ['prn','"hello"']]
+                ['c_def', 'hyphen_test', [], 'void', ['prn','"hello"']]
                 )
 
 
