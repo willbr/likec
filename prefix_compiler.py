@@ -174,6 +174,18 @@ class Function:
                 ]
 
 
+class Variable:
+
+    def __init__(self,
+            variable_name,
+            variable_type,
+            variable_scope='local',
+            ):
+        self.name = variable_name
+        self.type = variable_type
+        self.scope = variable_scope
+
+
 class Compiler:
 
     def __init__(self):
@@ -405,13 +417,15 @@ class Compiler:
     @log_compile
     def compile_variable_declarations(self):
         declarations = []
-        s = self.enviroment_stack[-1]
+        cs = self.current_scope()
         #pp(s)
-        for lvalue, value in sorted(s.items()):
-            var_type, var_scope = value
+        for k, v in sorted(cs.items()):
+            var_name = v.name
+            var_type = v.type
+            var_scope = v.scope
             #print(lvalue, var_type, var_scope)
             if var_scope == 'local':
-                l = self.compile_variable(lvalue, var_type)
+                l = self.compile_variable(var_name, var_type)
                 r = self.default_value(var_type)
                 declarations.append('%s = %s;' % (l, r))
         return declarations
@@ -457,24 +471,20 @@ class Compiler:
         else:
             return v
 
+    @log_compile
     def compile_call(self,
             function_name,
             *args):
         pre = []
-        logging.info('compile_call: %s', function_name)
-
-        try:
-            vt = self.variable_type(function_name)
-            return self.compile_method(function_name, *args)
-        except KeyError:
-            pass
 
         self.function_calls.append(function_name)
 
         compiled_args = []
         for arg in args:
             ce = self.compile_expression(arg)
+            pre.extend(ce.pre)
             compiled_args.append(ce.exp)
+
         exp = '%s(%s)' % (function_name, ', '.join(compiled_args))
 
         return CompiledExpression(
@@ -562,6 +572,7 @@ class Compiler:
 
     @log_compile
     def compile_assignment(self, lvalue, rvalue):
+        self.declare(lvalue, rvalue)
         ce_r = self.compile_expression(rvalue)
         exp = '%s = %s' % (
                 lvalue.value,
@@ -572,84 +583,20 @@ class Compiler:
                 exp=exp,
                 )
 
+    def declare(self, lexp, rexp):
+        variable_name = self.root_variable(lexp)
+        if variable_name not in self.current_scope():
+            et = self.expression_type(rexp)
+            self.current_scope()[variable_name] = Variable(
+                    variable_name,
+                    et,
+                    )
+
+    def root_variable(self, exp):
+        return exp.value
+
     def expression_type(self, exp):
-        #print(exp)
-        if isinstance(exp, str):
-            if exp in ['true', 'false']:
-                return ['Bool']
-            elif exp == 'NULL':
-                return ['*']
-
-            c = exp[0]
-            if c == '"':
-                return ['*', 'Char']
-            elif c == '\'':
-                return ['Char']
-            elif c == '{':
-                return ['[]']
-            elif self.in_scope(exp):
-                return self.variable_type(exp)
-            else:
-                #print(exp)
-                return ['Int',]
-        else:
-            #print(exp)
-            head, *tail = exp
-            if head == 'CArray':
-                return ['[]'] + self.expression_type(tail[0])
-            elif head == 'cast':
-                return tail[0]
-            elif is_obj(head):
-                return ['*', head]
-            elif self.is_infix_operator(head):
-                return self.expression_type(tail[0])
-            elif head == 'sizeof':
-                return ['size_t']
-            elif head == '->':
-                obj, field = tail
-                return self.field_type(obj, field)
-            elif head == 'deref':
-                et = self.expression_type(tail[0])
-                if et[0] == '*':
-                    return [et[1]]
-                elif et[0] == 'Array':
-                    return ['[]', et[2]]
-                else:
-                    raise TypeError('tried to deref an expression that isn\'t a pointer', et)
-            elif head in ['inc', 'dec', 'post_inc', 'post_dec']:
-                return self.expression_type(tail[0])
-            elif head == '_qm_':
-                return self.expression_type(tail[1])
-            elif head == 'range':
-                return self.expression_type(tail[0])
-            elif head == 'not':
-                return self.expression_type(tail[0])
-            elif head in ['map', 'filter']:
-                return ['*', 'List']
-            elif head in 'reduce':
-                return self.expression_type(tail[0])
-            elif head in 'car':
-                try:
-                    return tail[1]
-                except IndexError:
-                    pass
-                return ['*', 'void']
-            elif head in 'fn':
-                return tail[1]
-            elif head == 'in':
-                return ['Int']
-            elif head in 'if':
-                return self.expression_type(tail[1])
-            else:
-                if head in self.functions:
-                    return self.functions[head].return_type
-                else:
-                    f = self.lookup_library_function(head)
-                    if f:
-                        args, return_type = f
-                        return return_type
-                raise TypeError(exp)
-
+        return ['int']
 
     def current_scope(self):
         return self.enviroment_stack[-1]
@@ -664,35 +611,7 @@ class Compiler:
         return r
 
     def default_value(self, type_list):
-        #print(type_list)
-        if isinstance(type_list, list):
-            if type_list[0] == 'cast':
-                t = type_list[1][0]
-            else:
-                t = type_list[0]
-        else:
-            t = type_list
-
-        if t == 'int':
-            return '0'
-        elif t == 'float':
-            return '0.0'
-        elif t == '*':
-            return 'NULL'
-        elif t == '[]':
-            return '{}'
-        elif t == 'size_t':
-            return '0'
-        elif t == 'Int':
-            return '0'
-        elif t == 'List':
-            return 'NULL'
-        elif t == 'Array':
-            return '{%s}' % ', '.join([type_list[1]] + type_list[3:])
-        elif t == 'Char':
-            return r"'\0'"
-        else:
-            raise TypeError(t, type_list)
+        return '0'
 
     def compile_code(self, new_code):
         self.code = [new_code]

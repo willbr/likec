@@ -121,6 +121,10 @@ puts "hello"
                 'if1000',
                 )
 
+        self.assertTrue(
+                'if1000' in c.current_scope(),
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
