@@ -17,15 +17,40 @@ def scope(fn):
     def wrapper(self, *args):
         function_name_token, *_ = args
         function_name = function_name_token.value
-        logging.info('scope:scope>>>: %s', function_name)
         self.enviroment_stack.append(collections.OrderedDict())
-
         r = fn(self, *args)
-
-        #pp(self.current_scope())
-
-        logging.info('scope:scope<<<: %s', function_name)
         self.enviroment_stack.pop()
+        return r
+    return wrapper
+
+log_indent = 0
+def log_compile(fn):
+    def wrapper(self, *args):
+        global log_indent
+        #args_string = str(args)
+        indent_string = '-' * log_indent
+        pretty_args = []
+        for a in args:
+            if isinstance(a, str):
+                pretty_args.append(a)
+            else:
+                pretty_args.append(str(map_tree_to_values(a)))
+        args_string = ', '.join(pretty_args),
+        logging.info(
+                '%s>:%s: %s',
+                indent_string,
+                fn.__name__,
+                args_string,
+                )
+        log_indent += 1
+        r = fn(self, *args)
+        log_indent -= 1
+        logging.info(
+                '<%s:%s: %s',
+                indent_string,
+                fn.__name__,
+                r,
+                )
         return r
     return wrapper
 
@@ -102,21 +127,17 @@ class CompiledExpression:
     def __repr__(self):
         s = ['CompiledExpression']
         if self.pre:
-            s.append('pre: %s' % self.pre)
-        s.append('exp: %s' % self.exp)
+            s.append('pre: %s' % str(self.pre))
+        s.append('exp: {%s}' % str(self.exp))
         return '<%s>' % ' '.join(s)
-        return '<CompiledExpression pre: %s exp: "%s">' % (
-                self.pre,
-                self.exp,
-                )
 
     def compile(self):
         compiled = []
         for p in self.pre:
             if isinstance(p, str):
-                compiled.append(p + ';')
+                compiled.append(p)
             else:
-                compiled.extend(p)
+                compiled.append(p)
         compiled.append(self.exp + ';')
         return compiled
 
@@ -218,7 +239,6 @@ class Compiler:
         self.write_output()
 
     def add_standard_code(self):
-        logging.info('add_standard_code')
         self.add_file('standard_code.likec')
 
     def add_file(self, filename):
@@ -282,6 +302,7 @@ class Compiler:
                     'int',
                     *self.global_code)
 
+    @log_compile
     def compile_statement(self, statement):
         c = self.compile_expression(statement)
         if isinstance(c, str):
@@ -292,17 +313,13 @@ class Compiler:
         else:
             return c
 
+    @log_compile
     def compile_expression(self, statements):
         if isinstance(statements, Token):
-            logging.info('compile_expression: %s', statements,)
             return CompiledExpression(
                     exp=self.expand_variable(statements.value),
                     )
         else:
-            logging.info(
-                    'compile_expression: %s',
-                    map_tree_to_values(statements),
-                    )
             token_func_name, *args = statements
             func_name = token_func_name.value
             if func_name in self.keyword_compile_functions.keys():
@@ -312,6 +329,7 @@ class Compiler:
 
 
     @scope
+    @log_compile
     def compile_c_def(self,
             function_name_token,
             args,
@@ -321,19 +339,12 @@ class Compiler:
 
         function_name = function_name_token.value
         return_type = parse_type(return_type_exp)
-        logging.info('compile_c_def: %s', function_name)
 
         call_sig = '{}({})'.format(
             function_name,
             self.compile_def_arguments(args),
             )
         
-        #print(
-                #function_name,
-                #args,
-                #return_type,
-                #)
-
         result_exp = self.compile_begin(*body)
         compiled_body = result_exp.compile()
         new_body = self.compile_variable_declarations() + compiled_body
@@ -355,13 +366,12 @@ class Compiler:
 
             self.functions['main'] = f
         else:
-            #print('=======================')
-            #pp(self.functions)
             f = self.functions[function_name]
             f.compiled_header = function_header
             f.compiled_body = new_body
 
     @scope
+    @log_compile
     def compile_def(self,
             function_name_token,
             args,
@@ -371,7 +381,6 @@ class Compiler:
 
         function_name = function_name_token.value
         return_type = parse_type(return_type_exp)
-        logging.info('compile_c_def: %s', function_name)
 
         call_sig = '{}({})'.format(
             function_name,
@@ -393,6 +402,7 @@ class Compiler:
         f.compiled_body = new_body
         f.compiled = True
 
+    @log_compile
     def compile_variable_declarations(self):
         declarations = []
         s = self.enviroment_stack[-1]
@@ -406,21 +416,22 @@ class Compiler:
                 declarations.append('%s = %s;' % (l, r))
         return declarations
 
+    @log_compile
     def compile_def_arguments(self, arguments):
         paired_args = [(n, t) for n, t in grouper(2, arguments)]
         for n, t in paired_args:
             self.declare(n, t, 'argument')
         return ', '.join(self.compile_variable(n, t) for n, t in paired_args)
 
+    @log_compile
     def compile_begin(self,
             *expressions
             ):
         pre = []
         for expression in expressions:
             compiled_exp = self.compile_expression(expression)
-            pre.append(compiled_exp.pre)
-            pre.append(compiled_exp.exp)
-        final_expression = pre.pop()
+            pre.extend(compiled_exp.pre)
+            final_expression = compiled_exp.exp
         return CompiledExpression(
                 pre=pre,
                 exp=final_expression,
@@ -445,12 +456,6 @@ class Compiler:
                 raise ValueError(v)
         else:
             return v
-
-    def compile_constructor(self, object_name, *args):
-        if object_name == 'Array':
-            return self.compile_array(*args)
-        else:
-            return self.compile_new(object_name, *args)
 
     def compile_call(self,
             function_name,
@@ -500,12 +505,8 @@ class Compiler:
                 print('%s;' % f.compiled_header)
             print()
 
-        for m in methods:
-            indent(m.compiled())
-            print()
-
         for f in functions:
-            indent(f.compiled())
+            indent(f.compile())
             print()
 
         indent(main_function.compile())
@@ -516,7 +517,6 @@ class Compiler:
             name,
             var_type
             ):
-        #print('compile_variable', name or 'no-name', var_type)
         if isinstance(var_type, list):
             l = []
             r = []
@@ -560,10 +560,11 @@ class Compiler:
                 #print('cv', var_type, eo)
                 return '%s %s' % (eo, name)
 
+    @log_compile
     def compile_assignment(self, lvalue, rvalue):
         ce_r = self.compile_expression(rvalue)
         exp = '%s = %s' % (
-                lvalue,
+                lvalue.value,
                 ce_r.exp,
                 )
         return CompiledExpression(
@@ -745,9 +746,10 @@ class Compiler:
 
     def compile_return(self, exp):
         ce = self.compile_expression(exp)
+        exp='return %s' % ce.exp
         return CompiledExpression(
                 pre=ce.pre,
-                exp='return %s' % ce.exp,
+                exp=exp,
                 )
 
     def print_includes(self):
@@ -797,12 +799,16 @@ class Compiler:
             raise TypeError('no default format expression for "%s"' % et)
 
 
+    @log_compile
     def compile_infix(self, operator, *operands):
         compiled_operands = [self.compile_expression(o) for o in operands]
-        logging.info("compile_infix: %s", compiled_operands)
-        pre = [ce.pre for ce in compiled_operands]
-        exps = [ce.exp for ce in compiled_operands]
-        exp = '(%s)' % (' %s ' % operator).join(exps)
+        pre = []
+        exps = []
+        for ce in compiled_operands:
+            if ce.pre:
+                pre.append(ce.pre)
+            exps.append(ce.exp)
+        exp = '%s' % (' %s ' % operator).join(exps)
         return CompiledExpression(
                 pre=pre,
                 exp=exp,
@@ -811,6 +817,7 @@ class Compiler:
     def is_infix_operator(self, op):
         return op in self.infix_operators
 
+    @log_compile
     def compile_if(self,
             predicate,
             consequent,
@@ -818,23 +825,23 @@ class Compiler:
             ):
 
         pre = []
-        return_variable = self.genvar('if')
+        return_variable_name = self.genvar('if')
+        return_variable = Token(
+                'ID',
+                return_variable_name,
+                -1,
+                -1,
+                )
 
         ce_predicate = self.compile_expression(predicate)
-        ce_consequent = self.compile_expression(
-                    [
-                        '=',
+        ce_consequent = self.compile_assignment(
                         return_variable,
                         consequent,
-                        ]
-                    )
-        ce_alternative = self.compile_expression(
-                    [
-                        '=',
+                        )
+        ce_alternative = self.compile_assignment(
                         return_variable,
                         alternative,
-                        ]
-                    )
+                        )
 
         pre.extend([
             'if (%s) {' % ce_predicate.exp,
@@ -846,7 +853,7 @@ class Compiler:
 
         return CompiledExpression(
                 pre=pre,
-                exp=return_variable,
+                exp=return_variable_name,
                 )
 
 
