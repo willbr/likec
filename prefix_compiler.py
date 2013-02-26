@@ -134,10 +134,7 @@ class CompiledExpression:
     def compile(self):
         compiled = []
         for p in self.pre:
-            if isinstance(p, str):
-                compiled.append(p)
-            else:
-                compiled.append(p)
+            compiled.append(p)
         compiled.append(self.exp + ';')
         return compiled
 
@@ -206,11 +203,14 @@ class Compiler:
         self.genvar_counter = 1000
 
         self.keyword_compile_functions = {
-                'c_def': self.compile_c_def,
                 'def': self.compile_def,
                 '='  : self.compile_assignment,
                 'if': self.compile_if,
-                'return': self.compile_return,
+                'begin': self.compile_begin,
+                'not': functools.partial(self.compile_prefix, '!'),
+                'or': functools.partial(self.compile_infix, '||'),
+                'and': functools.partial(self.compile_infix, '&&'),
+                'eq_qm_': functools.partial(self.compile_infix, '=='),
                 }
 
         self.infix_operators = '''
@@ -292,7 +292,7 @@ class Compiler:
         r = []
         for branch in self.code_ast:
             head = branch[0].value
-            if head in ['c_def', 'def', 'obj', 'typedef']:
+            if head in ['def', 'obj', 'typedef']:
                 cs = self.compile_statement(branch)
                 r.append(cs)
             else:
@@ -308,7 +308,7 @@ class Compiler:
         else:
             raise Exception
             # all arguments need to be tokens
-            self.compile_c_def (
+            self.compile_def (
                     'main',
                     ['argc', 'int', 'argv', ['CArray', '*', 'char']],
                     'int',
@@ -342,48 +342,6 @@ class Compiler:
 
     @scope
     @log_compile
-    def compile_c_def(self,
-            function_name_token,
-            args,
-            return_type_exp,
-            *body
-            ):
-
-        function_name = function_name_token.value
-        return_type = parse_type(return_type_exp)
-
-        call_sig = '{}({})'.format(
-            function_name,
-            self.compile_def_arguments(args),
-            )
-        
-        result_exp = self.compile_begin(*body)
-        compiled_body = result_exp.compile()
-        new_body = self.compile_variable_declarations() + compiled_body
-
-        function_header = self.compile_variable(call_sig, return_type)
-
-        if function_name == 'main':
-            if 'main' in self.functions:
-                raise NameError('main is defined twice')
-
-            f = Function(
-                    'main',
-                    args,
-                    return_type,
-                    )
-
-            f.compiled_header = function_header
-            f.compiled_body = new_body
-
-            self.functions['main'] = f
-        else:
-            f = self.functions[function_name]
-            f.compiled_header = function_header
-            f.compiled_body = new_body
-
-    @scope
-    @log_compile
     def compile_def(self,
             function_name_token,
             args,
@@ -398,13 +356,9 @@ class Compiler:
             function_name,
             self.compile_def_arguments(args),
             )
-
-        if len(body) > 1:
-            raise SyntaxError('function body is more than one expression')
-        body_expression = body[0]
         
-        result_exp = self.compile_return(body_expression)
-        compiled_body = result_exp.compile()
+        ce = self.compile_begin(*body)
+        compiled_body = ce.pre + ['return %s;' % ce.exp]
         new_body = self.compile_variable_declarations() + compiled_body
 
         function_header = self.compile_variable(call_sig, return_type)
@@ -412,7 +366,6 @@ class Compiler:
         f = self.functions[function_name]
         f.compiled_header = function_header
         f.compiled_body = new_body
-        f.compiled = True
 
     @log_compile
     def compile_variable_declarations(self):
@@ -443,9 +396,10 @@ class Compiler:
             ):
         pre = []
         for expression in expressions:
-            compiled_exp = self.compile_expression(expression)
-            pre.extend(compiled_exp.pre)
-            final_expression = compiled_exp.exp
+            ce = self.compile_expression(expression)
+            pre.extend(ce.pre)
+            pre.append(ce.exp + ';')
+        final_expression = pre.pop()[:-1]
         return CompiledExpression(
                 pre=pre,
                 exp=final_expression,
@@ -663,9 +617,12 @@ class Compiler:
             except KeyError:
                 pass
 
-    def compile_return(self, exp):
+    def compile_prefix(self,
+            prefix,
+            exp,
+            ):
         ce = self.compile_expression(exp)
-        exp='return %s' % ce.exp
+        exp='%s%s' % (prefix, ce.exp)
         return CompiledExpression(
                 pre=ce.pre,
                 exp=exp,
@@ -720,13 +677,16 @@ class Compiler:
 
     @log_compile
     def compile_infix(self, operator, *operands):
-        compiled_operands = [self.compile_expression(o) for o in operands]
         pre = []
         exps = []
-        for ce in compiled_operands:
+        for op in operands:
+            ce = self.compile_expression(op)
             if ce.pre:
                 pre.append(ce.pre)
-            exps.append(ce.exp)
+            if isinstance(op, Token):
+                exps.append(ce.exp)
+            else:
+                exps.append('(%s)' % ce.exp)
         exp = '%s' % (' %s ' % operator).join(exps)
         return CompiledExpression(
                 pre=pre,

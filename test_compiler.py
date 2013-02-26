@@ -72,13 +72,13 @@ c-def main
     def test_redefine_error(self):
         c = self.compiler
         self.assertRaises(
-                NameError,
+                SyntaxError,
                 c.compile_code,
             '''
-c-def main
+def main
     puts "hello"
 
-c-def main
+def main
     puts "hello"
 ''',
                 )
@@ -88,7 +88,7 @@ c-def main
 
         c.compile_code(
             '''
-c-def main
+def main
     puts "hello"
 
 puts "hello"
@@ -125,6 +125,65 @@ puts "hello"
                 'if1000' in c.current_scope(),
                 )
 
+    def test_compile_infix_and(self):
+        c = self.compiler
+        and_ast = prefix_compiler.parse('(and 1 0)')[0]
+        ce = c.compile_expression(and_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '1 && 0',
+                )
+
+    def test_compile_infix_or(self):
+        c = self.compiler
+        or_ast = prefix_compiler.parse('(or 1 0)')[0]
+        ce = c.compile_expression(or_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '1 || 0',
+                )
+
+    def test_compile_infix_not(self):
+        c = self.compiler
+        not_ast = prefix_compiler.parse('(not 1)')[0]
+        ce = c.compile_expression(not_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '!1',
+                )
+
+    def test_compile_infix_eq(self):
+        c = self.compiler
+        eq_ast = prefix_compiler.parse('(eq? 1 0)')[0]
+        ce = c.compile_expression(eq_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '1 == 0',
+                )
 if __name__ == '__main__':
     unittest.main()
 
