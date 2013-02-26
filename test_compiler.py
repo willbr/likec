@@ -98,6 +98,29 @@ puts "hello"
                 c.compile_main,
                 )
 
+    def test_compile_if(self):
+        c = self.compiler
+        head, *tail = prefix_compiler.parse('(if (> 1 0) 1 0)')[0]
+        ce = c.compile_if(*tail)
+        self.assertEqual(
+                ce.pre,
+                [
+                    'if (1 > 0) {',
+                    [
+                        'if1000 = 1;',
+                        ],
+                    '} else {',
+                    [
+                        'if1000 = 0;',
+                        ],
+                    '}',
+                    ],
+                )
+        self.assertEqual(
+                ce.exp,
+                'if1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
