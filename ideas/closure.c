@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define call(_fn, ...) local->_fn->cfn(local->_fn->env, ##__VA_ARGS__)
+
 /*
  * Closure likec code
  * sea-lisp?
@@ -80,9 +82,9 @@ main (int argc, char **argv)
 {
     struct main_local *local = new_main_local(argc, argv);
     puts("hello");
-    local->arg_count->cfn(local->arg_count->env);
+    call(arg_count);
     local->argc -= 1;
-    local->arg_count->cfn(local->arg_count->env);
+    call(arg_count);
     return 0;
 }
 
