@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define call(_fn, ...) local->_fn->cfn(local->_fn->env, ##__VA_ARGS__)
+#define call(_fn, ...) local->_fn->cfn(local->_fn->env, ## __VA_ARGS__)
+#define new(type, name) type *name = malloc(sizeof(type))
+#define declare(name) local->name = name
+#define declare_fn(name) local->name = new_fn_ ## name(local);
 
 /*
  * Closure likec code
@@ -22,46 +25,36 @@
  * Declarations
  */
 
-struct main_local * new_main_local(int argc, char **argv);
-struct fn_main_arg_count *new_fn_main_arg_count(struct main_local *env);
+struct local_main;
+struct fn_arg_count;
 
-int cfn_main_arg_count(struct main_local *closure);
+struct fn_arg_count *new_fn_arg_count(struct local_main *env);
+int cfn_arg_count(struct local_main *closure);
 
 /*
  * Structures
  */
 
-struct main_local {
+struct local_main {
     int argc;
     char **argv;
-    struct fn_main_arg_count *arg_count;
+    struct fn_arg_count *arg_count;
 };
 
-struct fn_main_arg_count {
-    int (*cfn)(struct main_local* closure);
-    struct main_local *env;
+struct fn_arg_count {
+    int (*cfn)(struct local_main *closure);
+    struct local_main *env;
 };
 
 /*
  * Structure constructures
  */
 
-struct main_local *
-new_main_local(int argc, char **argv)
+struct fn_arg_count *
+new_fn_arg_count(struct local_main *env)
 {
-    struct main_local *local = malloc(sizeof(struct main_local));
-    local->argc = argc;
-    local->argv = argv;
-    local->arg_count = new_fn_main_arg_count(local);
-    return local;
-}
-
-struct fn_main_arg_count *
-new_fn_main_arg_count(struct main_local *env)
-{
-    struct fn_main_arg_count *fn =
-        malloc(sizeof(struct fn_main_arg_count));
-    fn->cfn = cfn_main_arg_count;
+    new(struct fn_arg_count, fn);
+    fn->cfn = cfn_arg_count;
     fn->env = env;
     return fn;
 }
@@ -71,7 +64,7 @@ new_fn_main_arg_count(struct main_local *env)
  */
 
 int
-cfn_main_arg_count(struct main_local *closure)
+cfn_arg_count(struct local_main *closure)
 {
     printf("%d\n", closure->argc);
     return 0;
@@ -80,7 +73,11 @@ cfn_main_arg_count(struct main_local *closure)
 int
 main (int argc, char **argv)
 {
-    struct main_local *local = new_main_local(argc, argv);
+    new(struct local_main, local);
+    declare(argc);
+    declare(argv);
+    declare_fn(arg_count);
+
     puts("hello");
     call(arg_count);
     local->argc -= 1;
