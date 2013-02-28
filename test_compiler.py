@@ -124,6 +124,46 @@ puts "hello"
                 'if1000' in c.current_scope(),
                 )
 
+    def test_compile_cond(self):
+        c = self.compiler
+        head, *tail = parse('''
+(cond ((> 1 0) 1)
+      ((> 2 0) 2)
+      ((> 3 0) 3)
+      (else 4))
+''')[0]
+        ce = c.compile_cond(*tail)
+        self.assertEqual(
+                ce.pre,
+                [
+                    'if (1 > 0) {',
+                    [
+                        'cond1000 = 1;',
+                        ],
+                    '} else if (2 > 0) {',
+                    [
+                        'cond1000 = 2;',
+                        ],
+                    '} else if (3 > 0) {',
+                    [
+                        'cond1000 = 3;',
+                        ],
+                    '} else {',
+                    [
+                        'cond1000 = 4;',
+                        ],
+                    '}',
+                    ],
+                )
+        self.assertEqual(
+                ce.exp,
+                'cond1000',
+                )
+
+        self.assertTrue(
+                'cond1000' in c.current_scope(),
+                )
+
     def test_compile_infix_and(self):
         c = self.compiler
         and_ast = parse('(and 1 0)')[0]

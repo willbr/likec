@@ -206,6 +206,7 @@ class Compiler:
                 'def': self.compile_def,
                 '='  : self.compile_assignment,
                 'if': self.compile_if,
+                'cond': self.compile_cond,
                 'begin': self.compile_begin,
                 'not': functools.partial(self.compile_prefix, '!'),
                 'or': functools.partial(self.compile_infix, '||'),
@@ -733,7 +734,51 @@ class Compiler:
                 exp=return_variable_name,
                 )
 
+    @log_compile
+    def compile_cond(self, *cases):
+        pre = []
 
+        return_variable_name = self.genvar('cond')
+        return_variable = Token(
+                'ID',
+                return_variable_name,
+                -1,
+                -1,
+                )
+
+        compiled_cases = []
+        for predicate, consequent in cases:
+            ce_predicate = self.compile_expression(predicate)
+            ce_consequent = self.compile_assignment(
+                            return_variable,
+                            consequent,
+                            )
+            compiled_cases.append((ce_predicate, ce_consequent))
+
+        ce_predicate, ce_consequent = compiled_cases.pop(0)
+        pre.extend([
+            'if (%s) {' % ce_predicate.exp,
+            ce_consequent.compile(),
+            ])
+        for ce_predicate, ce_consequent in compiled_cases:
+            if ce_predicate.exp != 'else':
+                pre.extend([
+                    '} else if (%s) {' % ce_predicate.exp,
+                    ce_consequent.compile(),
+                    ])
+            else:
+                pre.extend([
+                    '} else {',
+                    ce_consequent.compile(),
+                    ])
+
+        pre.append('}')
+
+
+        return CompiledExpression(
+                pre=pre,
+                exp=return_variable_name,
+                )
 
 
 if __name__ == '__main__':
