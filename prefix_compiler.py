@@ -204,14 +204,14 @@ class Compiler:
 
         self.keyword_compile_functions = {
                 'def': self.compile_def,
-                '='  : self.compile_assignment,
+                'set'  : self.compile_assignment,
                 'if': self.compile_if,
                 'cond': self.compile_cond,
                 'begin': self.compile_begin,
                 'not': functools.partial(self.compile_prefix, '!'),
                 'or': functools.partial(self.compile_infix, '||'),
                 'and': functools.partial(self.compile_infix, '&&'),
-                'eq_qm_': functools.partial(self.compile_infix, '=='),
+                '=': functools.partial(self.compile_infix, '=='),
                 '-': self.compile_substitution,
                 }
 

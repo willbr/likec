@@ -211,7 +211,7 @@ puts "hello"
 
     def test_compile_infix_eq(self):
         c = self.compiler
-        eq_ast = parse('(eq? 1 0)')[0]
+        eq_ast = parse('(= 1 0)')[0]
         ce = c.compile_expression(eq_ast)
 
         self.assertEqual(
