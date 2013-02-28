@@ -249,7 +249,6 @@ class Compiler:
         self.extract_type_information()
         self.compile_statements()
         self.compile_main()
-        self.write_output()
 
     def add_standard_code(self):
         self.add_file('standard_code.likec')
@@ -257,11 +256,14 @@ class Compiler:
     def add_file(self, filename):
         self.input_files.append(filename)
 
+    def add_code(self, text):
+        self.code.append(text)
+
     def read_files(self):
         for filename in self.input_files:
             logging.info('read_files: %s', filename)
             with open(filename) as f:
-                self.code.append(f.read())
+                self.add_code(f.read())
 
     def parse_code(self):
         for c in self.code:
@@ -307,12 +309,19 @@ class Compiler:
         elif 'main' in self.functions:
             return
         else:
-            raise Exception
-            # all arguments need to be tokens
+            token_def = Token('ID', 'def', -1, -1)
+            token_main = Token('ID', 'main', -1, -1)
+            token_return_type = Token('ID', 'int', -1, -1)
+            self.register_function([
+                token_def,
+                token_main,
+                [],
+                token_return_type,
+                ])
             self.compile_def (
-                    'main',
-                    ['argc', 'int', 'argv', ['CArray', '*', 'char']],
-                    'int',
+                    token_main,
+                    [],
+                    token_return_type,
                     *self.global_code)
 
     @log_compile
@@ -788,5 +797,6 @@ if __name__ == '__main__':
     #pc.add_standard_code()
     pc.add_file(input_filename)
     pc.compile()
+    pc.write_output()
     #main()
 

@@ -243,6 +243,24 @@ puts "hello"
                     c_output,
                     )
 
+    def test_global_code(self):
+        c = self.compiler
+        c.add_code('''
+puts "hello"
+''')
+        c.compile()
+
+        self.assertEqual(
+                c.functions['main'].compile(),
+                [
+                    'int main()',
+                    '{',
+                    [
+                        'return puts("hello");',
+                        ],
+                    '}',
+                    ]
+                )
 
 if __name__ == '__main__':
     unittest.main()
