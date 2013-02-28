@@ -485,9 +485,6 @@ class Compiler:
             var_type
             ):
         if isinstance(var_type, list):
-            l = []
-            r = []
-
             if var_type[0] == 'cast':
                 type_stack = var_type[1][::-1]
             elif var_type[0] == 'Array':
@@ -496,12 +493,17 @@ class Compiler:
                 type_stack = var_type[::-1]
 
             l = [type_stack.pop(0)]
+            r = [name] if name else []
 
-            if name:
-                r.append(name)
-
+            previous_t = None
             while type_stack:
                 t = type_stack.pop()
+                if previous_t == None:
+                    pass
+                elif t != previous_t:
+                    r.insert(0, '(')
+                    r.append(')')
+
                 if t == '*':
                     r.insert(0, t)
                 elif t == 'CArray':
@@ -513,10 +515,8 @@ class Compiler:
                     break
                 else:
                     raise TypeError(name, t)
-                if len(r) > 1:
-                    r.insert(0, '(')
-                    r.append(')')
-                #print(l, r)
+
+                previous_t = t
             return '%s %s' % (''.join(l), ''.join(r))
         else:
             return '%s %s' % (var_type, name)

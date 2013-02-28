@@ -1,8 +1,7 @@
 import unittest
-import prefix_compiler
 from prefix_tokenizer import Token
 from prefix_parser import map_tree_to_values
-from prefix_compiler import Compiler, parse
+from prefix_compiler import Compiler, parse, parse_type
 
 
 def parse_to_values(code):
@@ -100,7 +99,7 @@ puts "hello"
 
     def test_compile_if(self):
         c = self.compiler
-        head, *tail = prefix_compiler.parse('(if (> 1 0) 1 0)')[0]
+        head, *tail = parse('(if (> 1 0) 1 0)')[0]
         ce = c.compile_if(*tail)
         self.assertEqual(
                 ce.pre,
@@ -127,7 +126,7 @@ puts "hello"
 
     def test_compile_infix_and(self):
         c = self.compiler
-        and_ast = prefix_compiler.parse('(and 1 0)')[0]
+        and_ast = parse('(and 1 0)')[0]
         ce = c.compile_expression(and_ast)
 
         self.assertEqual(
@@ -142,7 +141,7 @@ puts "hello"
 
     def test_compile_infix_or(self):
         c = self.compiler
-        or_ast = prefix_compiler.parse('(or 1 0)')[0]
+        or_ast = parse('(or 1 0)')[0]
         ce = c.compile_expression(or_ast)
 
         self.assertEqual(
@@ -157,7 +156,7 @@ puts "hello"
 
     def test_compile_infix_not(self):
         c = self.compiler
-        not_ast = prefix_compiler.parse('(not 1)')[0]
+        not_ast = parse('(not 1)')[0]
         ce = c.compile_expression(not_ast)
 
         self.assertEqual(
@@ -172,7 +171,7 @@ puts "hello"
 
     def test_compile_infix_eq(self):
         c = self.compiler
-        eq_ast = prefix_compiler.parse('(eq? 1 0)')[0]
+        eq_ast = parse('(eq? 1 0)')[0]
         ce = c.compile_expression(eq_ast)
 
         self.assertEqual(
@@ -184,6 +183,27 @@ puts "hello"
                 ce.exp,
                 '1 == 0',
                 )
+
+    def test_compile_variable(self):
+        c = self.compiler
+
+        tests = (
+                ('argc int', 'int argc'),
+                ('argv (* * char)', 'char **argv'),
+                ('argv (* CArray char)', 'char (*argv)[]'),
+                )
+
+        for code_input, c_output in tests:
+            token_name, tokens_type = parse(code_input)[0]
+            var_name = token_name.value
+            var_type = parse_type(tokens_type)
+
+            self.assertEqual(
+                    c.compile_variable(var_name, var_type),
+                    c_output,
+                    )
+
+
 if __name__ == '__main__':
     unittest.main()
 
