@@ -3,7 +3,7 @@
 if "%1"=="" (
     call :default
 ) else (
-    call :%1 %2
+    call :%*
 )
 exit /b %ERRORLEVEL%
 
@@ -27,7 +27,7 @@ exit /b %ERRORLEVEL%
 
 :r
 :run
-    call :gcc %1 && a.exe
+    call :gcc %1 && a.exe %2 %3 %4 %5 %6 %7 %8 %9
     exit /b %ERRORLEVEL%
 
 :p
