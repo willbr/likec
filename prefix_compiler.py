@@ -176,7 +176,7 @@ class Variable:
     def __init__(self,
             variable_name,
             variable_type,
-            variable_scope='local',
+            variable_scope,
             ):
         self.name = variable_name
         self.type = variable_type
@@ -388,7 +388,10 @@ class Compiler:
         paired_args = [(n, t) for n, t in grouper(2, arguments)]
         for n, t in paired_args:
             self.declare(n, t, 'argument')
-        return ', '.join(self.compile_variable(n, t) for n, t in paired_args)
+        return ', '.join( self.compile_variable(
+            n.value,
+            parse_type(t),
+            ) for n, t in paired_args)
 
     @log_compile
     def compile_begin(self,
@@ -516,13 +519,7 @@ class Compiler:
                 #print(l, r)
             return '%s %s' % (''.join(l), ''.join(r))
         else:
-            #print(name, var_type)
-            if name == '':
-                return expand_object(var_type)
-            else:
-                eo = expand_object(var_type)
-                #print('cv', var_type, eo)
-                return '%s %s' % (eo, name)
+            return '%s %s' % (var_type, name)
 
     @log_compile
     def compile_assignment(self, lvalue, rvalue):
@@ -537,13 +534,14 @@ class Compiler:
                 exp=exp,
                 )
 
-    def declare(self, lexp, rexp):
+    def declare(self, lexp, rexp, scope='local'):
         variable_name = self.root_variable(lexp)
         if variable_name not in self.current_scope():
             et = self.expression_type(rexp)
             self.current_scope()[variable_name] = Variable(
                     variable_name,
                     et,
+                    scope,
                     )
 
     def root_variable(self, exp):
@@ -739,7 +737,7 @@ class Compiler:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()
