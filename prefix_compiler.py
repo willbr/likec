@@ -212,10 +212,11 @@ class Compiler:
                 'or': functools.partial(self.compile_infix, '||'),
                 'and': functools.partial(self.compile_infix, '&&'),
                 'eq_qm_': functools.partial(self.compile_infix, '=='),
+                '-': self.compile_substitution,
                 }
 
         self.infix_operators = '''
-        + - * /
+        + * /
         == !=
         += -=
         *= /=
@@ -687,6 +688,8 @@ class Compiler:
     def compile_infix(self, operator, *operands):
         pre = []
         exps = []
+        if len(operands) < 2:
+            raise SyntaxError('''infix operator requires at least 2 arguments:''')
         for op in operands:
             ce = self.compile_expression(op)
             if ce.pre:
@@ -788,6 +791,19 @@ class Compiler:
                 pre=pre,
                 exp=return_variable_name,
                 )
+
+    def compile_substitution(self, *operands):
+        if len(operands) == 1:
+            operand = operands[0]
+            ce = self.compile_expression(operand)
+            pre = ce.pre
+            exp = '-%s' % ce.exp
+            return CompiledExpression(
+                    pre=pre,
+                    exp=exp,
+                    )
+        else:
+            return self.compile_infix('-', *operands)
 
 
 if __name__ == '__main__':

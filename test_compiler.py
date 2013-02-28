@@ -262,6 +262,36 @@ puts "hello"
                     ]
                 )
 
+    def test_compile_subtitution_single_argument(self):
+        c = self.compiler
+        eq_ast = parse('(- 5)')[0]
+        ce = c.compile_expression(eq_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '-5',
+                )
+
+    def test_compile_subtitution_two_arguments(self):
+        c = self.compiler
+        eq_ast = parse('(- 5 5)')[0]
+        ce = c.compile_expression(eq_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '5 - 5',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
