@@ -99,12 +99,12 @@ puts "hello"
 
     def test_compile_if(self):
         c = self.compiler
-        ast = parse('(if (> 1 0) 1 0)')[0]
+        ast = parse('(if 1 1 0)')[0]
         ce = c.compile_if(*ast)
         self.assertEqual(
                 ce.pre,
                 [
-                    'if (1 > 0) {',
+                    'if (1) {',
                     [
                         'if1000 = 1;',
                         ],
@@ -127,24 +127,24 @@ puts "hello"
     def test_compile_cond(self):
         c = self.compiler
         ast = parse('''
-(cond ((> 1 0) 1)
-      ((> 2 0) 2)
-      ((> 3 0) 3)
+(cond (true 1)
+      (true 2)
+      (true 3)
       (else 4))
 ''')[0]
         ce = c.compile_cond(*ast)
         self.assertEqual(
                 ce.pre,
                 [
-                    'if (1 > 0) {',
+                    'if (true) {',
                     [
                         'cond1000 = 1;',
                         ],
-                    '} else if (2 > 0) {',
+                    '} else if (true) {',
                     [
                         'cond1000 = 2;',
                         ],
-                    '} else if (3 > 0) {',
+                    '} else if (true) {',
                     [
                         'cond1000 = 3;',
                         ],
@@ -217,12 +217,15 @@ puts "hello"
 
         self.assertEqual(
                 ce.pre,
-                [],
+                [
+                    'comp_exp1000 = 1;',
+                    'comp_exp1001 = 0;',
+                    ]
                 )
 
         self.assertEqual(
                 ce.exp,
-                '1 == 0',
+                'comp_exp1000 == comp_exp1001',
                 )
 
     def test_compile_variable(self):
@@ -306,6 +309,43 @@ puts "hello"
         self.assertEqual(
                 ce.exp,
                 'a = b = 5',
+                )
+
+    def test_comparison_operator(self):
+        c = self.compiler
+        ast = parse('(< 0 1)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'comp_exp1000 = 0;',
+                    'comp_exp1001 = 1;',
+                    ],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'comp_exp1000 < comp_exp1001',
+                )
+
+    def test_comparison_operator_many_arguments(self):
+        c = self.compiler
+        ast = parse('(< 0 1 2)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'comp_exp1000 = 0;',
+                    'comp_exp1001 = 1;',
+                    'comp_exp1002 = 2;',
+                    ],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '(comp_exp1000 < comp_exp1001) && (comp_exp1001 < comp_exp1002)',
                 )
 
 if __name__ == '__main__':

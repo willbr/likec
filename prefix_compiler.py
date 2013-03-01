@@ -211,22 +211,40 @@ class Compiler:
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
-                '=': rewrite_match_id('==', self.compile_infix),
+                '=': rewrite_match_id('==', self.compile_comparison),
                 '-': self.compile_substitution,
                 }
 
-        self.infix_operators = '''
-        + * /
-        == !=
+        self.arithmetic_operators = '''
+        +
+        * /
+        %
+        '''.split()
+
+        self.compound_assignment_operators = '''
         += -=
         *= /=
+        &= |=
+        ^=
+        <<= >>=
+        '''.split()
+
+        self.comparison_operators = '''
+        == !=
         < >
         <= >=
         '''.split()
 
 
-        for op in self.infix_operators:
+
+        for op in self.arithmetic_operators:
             self.keyword_compile_functions[op] = self.compile_infix
+
+        for op in self.compound_assignment_operators:
+            self.keyword_compile_functions[op] = self.compile_infix_two_arguments
+
+        for op in self.comparison_operators:
+            self.keyword_compile_functions[op] = self.compile_comparison
 
         self.libraries = {
                 'stdio.h': {
@@ -708,8 +726,12 @@ class Compiler:
                 exp=exp,
                 )
 
-    def is_infix_operator(self, op):
-        return op in self.infix_operators
+    @log_compile
+    def compile_infix_two_arguments(self, match_token,
+            arg1,
+            arg2,
+            ):
+        return self.compile_infix(match_token, arg1, arg2)
 
     @log_compile
     def compile_if(self, match_token,
@@ -812,6 +834,46 @@ class Compiler:
         else:
             return self.compile_infix(match_token, *operands)
 
+    @log_compile
+    def compile_comparison(self, match_token, *expressions):
+        pre = []
+        l = []
+
+        compiled_expressions = []
+        variable_names = []
+        for expression in expressions:
+            exp_var = fake_id(self.genvar('comp_exp'))
+            variable_names.append(exp_var.value)
+            ce = self.compile_assignment(
+                    match_token._replace(value='='),
+                    exp_var,
+                    expression,
+                    )
+            pre.extend(ce.compile())
+            compiled_expressions.append(ce)
+
+        if len(expressions) > 2:
+            format_s = '(%s %s %s)'
+        else:
+            format_s = '%s %s %s'
+
+        l = [format_s % (v, match_token.value, next_v)
+                for v, next_v
+                in zip(variable_names, variable_names[1:])
+                ]
+
+        return CompiledExpression(
+                pre=pre,
+                exp=' && '.join(l),
+                )
+
+        #l = [format_s % (e.value, match_token.value, next_e.value)
+                #for e, next_e
+                #in zip(exps, exps[1:])
+                #]
+
+        #return CompiledExpression(' && '.join(l))
+
 def fake_id(value):
     return Token('ID', value, -1, -1)
 
@@ -823,7 +885,7 @@ def rewrite_match_id(new_value, fn):
     return wrapper
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()
