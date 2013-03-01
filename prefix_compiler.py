@@ -14,18 +14,18 @@ from sys import argv
 pp = pprint.PrettyPrinter(indent=2).pprint
 
 def scope(fn):
-    def wrapper(self, *args):
+    def wrapper(self, *args, **kwargs):
         function_name_token, *_ = args
         function_name = function_name_token.value
         self.enviroment_stack.append(collections.OrderedDict())
-        r = fn(self, *args)
+        r = fn(self, *args, **kwargs)
         self.enviroment_stack.pop()
         return r
     return wrapper
 
 log_indent = 0
 def log_compile(fn):
-    def wrapper(self, *args):
+    def wrapper(self, *args, **kwargs):
         global log_indent
         #args_string = str(args)
         indent_string = '-' * log_indent
@@ -43,7 +43,7 @@ def log_compile(fn):
                 args_string,
                 )
         log_indent += 1
-        r = fn(self, *args)
+        r = fn(self, *args, **kwargs)
         log_indent -= 1
         logging.info(
                 '<%s:%s: %s',
@@ -208,10 +208,10 @@ class Compiler:
                 'if': self.compile_if,
                 'cond': self.compile_cond,
                 'begin': self.compile_begin,
-                'not': functools.partial(self.compile_prefix, '!'),
-                'or': functools.partial(self.compile_infix, '||'),
-                'and': functools.partial(self.compile_infix, '&&'),
-                '=': functools.partial(self.compile_infix, '=='),
+                'not': rewrite_match_id('!', self.compile_prefix),
+                'and': rewrite_match_id('&&', self.compile_infix),
+                'or': rewrite_match_id('||', self.compile_infix),
+                '=': rewrite_match_id('==', self.compile_infix),
                 '-': self.compile_substitution,
                 }
 
@@ -226,10 +226,7 @@ class Compiler:
 
 
         for op in self.infix_operators:
-            self.keyword_compile_functions[op] = functools.partial(
-                    self.compile_infix,
-                    op,
-                    )
+            self.keyword_compile_functions[op] = self.compile_infix
 
         self.libraries = {
                 'stdio.h': {
@@ -320,6 +317,7 @@ class Compiler:
                 token_return_type,
                 ])
             self.compile_def (
+                    token_def,
                     token_main,
                     [],
                     token_return_type,
@@ -346,14 +344,14 @@ class Compiler:
             token_func_name, *args = statements
             func_name = token_func_name.value
             if func_name in self.keyword_compile_functions.keys():
-                return self.keyword_compile_functions[func_name](*args)
+                return self.keyword_compile_functions[func_name](*statements)
             else:
-                return self.compile_call(func_name, *args)
+                return self.compile_call(*statements)
 
 
     @scope
     @log_compile
-    def compile_def(self,
+    def compile_def(self, match_token,
             function_name_token,
             args,
             return_type_exp,
@@ -368,7 +366,7 @@ class Compiler:
             self.compile_def_arguments(args),
             )
         
-        ce = self.compile_begin(*body)
+        ce = self.compile_begin(match_token._replace(value='begin'),*body)
         compiled_body = ce.pre + ['return %s;' % ce.exp]
         new_body = self.compile_variable_declarations() + compiled_body
 
@@ -405,7 +403,7 @@ class Compiler:
             ) for n, t in paired_args)
 
     @log_compile
-    def compile_begin(self,
+    def compile_begin(self, match_token,
             *expressions
             ):
         pre = []
@@ -441,9 +439,11 @@ class Compiler:
 
     @log_compile
     def compile_call(self,
-            function_name,
+            function_name_token,
             *args):
         pre = []
+
+        function_name = function_name_token.value
 
         self.function_calls.append(function_name)
 
@@ -533,7 +533,10 @@ class Compiler:
             return '%s %s' % (var_type, name)
 
     @log_compile
-    def compile_assignment(self, lvalue, rvalue):
+    def compile_assignment(self, match_token,
+            lvalue,
+            rvalue,
+            ):
         self.declare(lvalue, rvalue)
         ce_r = self.compile_expression(rvalue)
         exp = '%s = %s' % (
@@ -626,10 +629,10 @@ class Compiler:
             except KeyError:
                 pass
 
-    def compile_prefix(self,
-            prefix,
+    def compile_prefix(self, match_token,
             exp,
             ):
+        prefix = match_token.value
         ce = self.compile_expression(exp)
         exp='%s%s' % (prefix, ce.exp)
         return CompiledExpression(
@@ -685,9 +688,12 @@ class Compiler:
 
 
     @log_compile
-    def compile_infix(self, operator, *operands):
+    def compile_infix(self, match_token,
+            *operands
+            ):
         pre = []
         exps = []
+        operator = match_token.value
         if len(operands) < 2:
             raise SyntaxError('''infix operator requires at least 2 arguments:''')
         for op in operands:
@@ -708,7 +714,7 @@ class Compiler:
         return op in self.infix_operators
 
     @log_compile
-    def compile_if(self,
+    def compile_if(self, match_token,
             predicate,
             consequent,
             alternative,
@@ -725,10 +731,12 @@ class Compiler:
 
         ce_predicate = self.compile_expression(predicate)
         ce_consequent = self.compile_assignment(
+                        fake_id('='),
                         return_variable,
                         consequent,
                         )
         ce_alternative = self.compile_assignment(
+                        fake_id('='),
                         return_variable,
                         alternative,
                         )
@@ -747,7 +755,7 @@ class Compiler:
                 )
 
     @log_compile
-    def compile_cond(self, *cases):
+    def compile_cond(self, match_token, *cases):
         pre = []
 
         return_variable_name = self.genvar('cond')
@@ -762,6 +770,7 @@ class Compiler:
         for predicate, consequent in cases:
             ce_predicate = self.compile_expression(predicate)
             ce_consequent = self.compile_assignment(
+                            fake_id('='),
                             return_variable,
                             consequent,
                             )
@@ -792,7 +801,7 @@ class Compiler:
                 exp=return_variable_name,
                 )
 
-    def compile_substitution(self, *operands):
+    def compile_substitution(self, match_token, *operands):
         if len(operands) == 1:
             operand = operands[0]
             ce = self.compile_expression(operand)
@@ -803,11 +812,20 @@ class Compiler:
                     exp=exp,
                     )
         else:
-            return self.compile_infix('-', *operands)
+            return self.compile_infix(match_token, *operands)
 
+def fake_id(value):
+    return Token('ID', value, -1, -1)
+
+def rewrite_match_id(new_value, fn):
+    def wrapper(*args):
+        head, *tail = args
+        head = head._replace(value=new_value)
+        return fn(head, *tail)
+    return wrapper
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()

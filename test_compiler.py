@@ -99,8 +99,8 @@ puts "hello"
 
     def test_compile_if(self):
         c = self.compiler
-        head, *tail = parse('(if (> 1 0) 1 0)')[0]
-        ce = c.compile_if(*tail)
+        ast = parse('(if (> 1 0) 1 0)')[0]
+        ce = c.compile_if(*ast)
         self.assertEqual(
                 ce.pre,
                 [
@@ -126,13 +126,13 @@ puts "hello"
 
     def test_compile_cond(self):
         c = self.compiler
-        head, *tail = parse('''
+        ast = parse('''
 (cond ((> 1 0) 1)
       ((> 2 0) 2)
       ((> 3 0) 3)
       (else 4))
 ''')[0]
-        ce = c.compile_cond(*tail)
+        ce = c.compile_cond(*ast)
         self.assertEqual(
                 ce.pre,
                 [
@@ -155,6 +155,7 @@ puts "hello"
                     '}',
                     ],
                 )
+
         self.assertEqual(
                 ce.exp,
                 'cond1000',
@@ -194,7 +195,7 @@ puts "hello"
                 '1 || 0',
                 )
 
-    def test_compile_infix_not(self):
+    def test_compile_prefix_not(self):
         c = self.compiler
         not_ast = parse('(not 1)')[0]
         ce = c.compile_expression(not_ast)
