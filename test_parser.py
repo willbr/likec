@@ -57,6 +57,22 @@ c-def test
                     ['return', '5']]]
                 )
 
+    def test_lexp_cond(self):
+        self.assertEqual(
+                map_tree_to_values(ast('''
+cond
+    (> 1 0) 1
+    (< 1 0) 0
+    else -1
+''')[0]),
+                [
+                    'cond',
+                    [['>', '1', '0'], '1'],
+                    [['<', '1', '0'], '0'],
+                    ['else', '-1']
+                    ]
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

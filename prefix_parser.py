@@ -46,6 +46,8 @@ def parse_lexp(token_stream):
 
     if not line:
         pass
+    elif isinstance(first_token, list):
+        pass
     elif first_token.value in ['c-def', 'def']:
         length = len(line)
         c_type = 'int' if first_token.value == 'def' else 'void'
