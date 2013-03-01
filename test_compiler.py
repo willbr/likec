@@ -293,6 +293,21 @@ puts "hello"
                 '5 - 5',
                 )
 
+    def test_chained_assignment(self):
+        c = self.compiler
+        ast = parse('(set a b 5)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'a = b = 5',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

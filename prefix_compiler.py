@@ -534,18 +534,16 @@ class Compiler:
 
     @log_compile
     def compile_assignment(self, match_token,
-            lvalue,
-            rvalue,
+            *args
             ):
-        self.declare(lvalue, rvalue)
-        ce_r = self.compile_expression(rvalue)
-        exp = '%s = %s' % (
-                lvalue.value,
-                ce_r.exp,
-                )
-        return CompiledExpression(
-                pre=ce_r.pre,
-                exp=exp,
+        *lvalues, rvalue = args
+        exps = lvalues
+        for lvalue in lvalues:
+            self.declare(lvalue, rvalue)
+        exps.append(rvalue)
+        return self.compile_infix(
+                fake_id('='),
+                *exps
                 )
 
     def declare(self, lexp, rexp, scope='local'):
