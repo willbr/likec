@@ -124,6 +124,34 @@ puts "hello"
                 'if1000' in c.current_scope(),
                 )
 
+    def test_compile_if_comparison(self):
+        c = self.compiler
+        ast = parse('(if (< 1 2) 1 0)')[0]
+        ce = c.compile_if(*ast)
+        self.assertEqual(
+                ce.pre,
+                [
+                    'comp_exp1001 = 1;',
+                    'comp_exp1002 = 2;',
+                    'if (comp_exp1001 < comp_exp1002) {',
+                    [
+                        'if1000 = 1;',
+                        ],
+                    '} else {',
+                    [
+                        'if1000 = 0;',
+                        ],
+                    '}',
+                    ],
+                )
+        self.assertEqual(
+                ce.exp,
+                'if1000',
+                )
+
+        self.assertTrue(
+                'if1000' in c.current_scope(),
+                )
     def test_compile_cond(self):
         c = self.compiler
         ast = parse('''

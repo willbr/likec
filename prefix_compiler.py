@@ -761,6 +761,8 @@ class Compiler:
                         alternative,
                         )
 
+        pre.extend(ce_predicate.pre)
+
         pre.extend([
             'if (%s) {' % ce_predicate.exp,
             ce_consequent.compile(),
