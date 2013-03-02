@@ -271,7 +271,7 @@ puts "hello"
             var_type = parse_type(tokens_type)
 
             self.assertEqual(
-                    c.compile_variable(var_name, var_type),
+                    c.compile_variable_declaration(var_name, var_type),
                     c_output,
                     )
 
@@ -412,6 +412,13 @@ puts "hello"
         c = self.compiler
 
         ast = parse('< 0')[0]
+        with self.assertRaises(SyntaxError):
+            c.compile_expression(ast)
+
+    def test_invalid_variable_reference(self):
+        c = self.compiler
+
+        ast = parse('< n 0')[0]
         with self.assertRaises(SyntaxError):
             c.compile_expression(ast)
 

@@ -355,9 +355,10 @@ class Compiler:
     @log_compile
     def compile_expression(self, statements):
         if isinstance(statements, Token):
-            return CompiledExpression(
-                    exp=self.expand_variable(statements.value),
-                    )
+            if statements.typ == 'ID':
+                return self.compile_variable(statements)
+            else:
+                return CompiledExpression(statements.value)
         else:
             token_func_name, *args = statements
             func_name = token_func_name.value
@@ -388,7 +389,7 @@ class Compiler:
         compiled_body = ce.pre + ['return %s;' % ce.exp]
         new_body = self.compile_variable_declarations() + compiled_body
 
-        function_header = self.compile_variable(call_sig, return_type)
+        function_header = self.compile_variable_declaration(call_sig, return_type)
 
         f = self.functions[function_name]
         f.compiled_header = function_header
@@ -405,7 +406,7 @@ class Compiler:
             var_scope = v.scope
             #print(lvalue, var_type, var_scope)
             if var_scope == 'local':
-                l = self.compile_variable(var_name, var_type)
+                l = self.compile_variable_declaration(var_name, var_type)
                 r = self.default_value(var_type)
                 declarations.append('%s = %s;' % (l, r))
         return declarations
@@ -415,7 +416,7 @@ class Compiler:
         paired_args = [(n, t) for n, t in grouper(2, arguments)]
         for n, t in paired_args:
             self.declare(n, t, 'argument')
-        return ', '.join( self.compile_variable(
+        return ', '.join( self.compile_variable_declaration(
             n.value,
             parse_type(t),
             ) for n, t in paired_args)
@@ -509,7 +510,7 @@ class Compiler:
         print()
 
 
-    def compile_variable(self,
+    def compile_variable_declaration(self,
             name,
             var_type
             ):
@@ -781,12 +782,7 @@ class Compiler:
         pre = []
 
         return_variable_name = self.genvar('cond')
-        return_variable = Token(
-                'ID',
-                return_variable_name,
-                -1,
-                -1,
-                )
+        return_variable = Token('ID', return_variable_name, -1, -1,)
 
         compiled_cases = []
         for predicate, consequent in cases:
@@ -865,12 +861,19 @@ class Compiler:
                 exp=' && '.join(l),
                 )
 
-        #l = [format_s % (e.value, match_token.value, next_e.value)
-                #for e, next_e
-                #in zip(exps, exps[1:])
-                #]
+    def compile_variable(self, match_token):
+        if match_token.value in [
+                'true',
+                'false',
+                'else',
+                ]:
+            pass
+        elif match_token.value not in self.current_scope():
+            raise SyntaxError('reference before assignment: %s' % match_token.value)
+        return CompiledExpression(
+                match_token.value,
+                )
 
-        #return CompiledExpression(' && '.join(l))
 
 def fake_id(value):
     return Token('ID', value, -1, -1)
