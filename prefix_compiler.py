@@ -212,11 +212,11 @@ class Compiler:
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
                 '=': rewrite_match_id('==', self.compile_comparison),
-                '-': self.compile_substitution,
+                '+': self.compile_addition_or_substitution,
+                '-': self.compile_addition_or_substitution,
                 }
 
         self.arithmetic_operators = '''
-        +
         * /
         %
         '''.split()
@@ -821,16 +821,9 @@ class Compiler:
                 exp=return_variable_name,
                 )
 
-    def compile_substitution(self, match_token, *operands):
+    def compile_addition_or_substitution(self, match_token, *operands):
         if len(operands) == 1:
-            operand = operands[0]
-            ce = self.compile_expression(operand)
-            pre = ce.pre
-            exp = '-%s' % ce.exp
-            return CompiledExpression(
-                    pre=pre,
-                    exp=exp,
-                    )
+            return self.compile_prefix(match_token, operands[0])
         else:
             return self.compile_infix(match_token, *operands)
 

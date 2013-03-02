@@ -348,6 +348,37 @@ puts "hello"
                 '(comp_exp1000 < comp_exp1001) && (comp_exp1001 < comp_exp1002)',
                 )
 
+
+    def test_addition(self):
+        c = self.compiler
+        ast = parse('(+ 0 1 2)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '0 + 1 + 2',
+                )
+
+    def test_substitution(self):
+        c = self.compiler
+        ast = parse('(- 0 1 2)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '0 - 1 - 2',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
