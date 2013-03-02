@@ -379,6 +379,14 @@ puts "hello"
                 '0 - 1 - 2',
                 )
 
+
+    def test_comparison(self):
+        c = self.compiler
+
+        ast = parse('< 0')[0]
+        with self.assertRaises(SyntaxError):
+            c.compile_expression(ast)
+
 if __name__ == '__main__':
     unittest.main()
 

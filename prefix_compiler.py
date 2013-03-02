@@ -832,6 +832,9 @@ class Compiler:
         pre = []
         l = []
 
+        if len(expressions) < 2:
+            raise SyntaxError
+
         compiled_expressions = []
         variable_names = []
         for expression in expressions:
