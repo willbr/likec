@@ -446,6 +446,33 @@ puts "hello"
                 'while1000',
                 )
 
+    def test_compile_prefix(self):
+        c = self.compiler
+
+        ast = parse('(set i 0)')[0]
+        ce = c.compile_expression(ast)
+
+        ast = parse('(inc i)')[0]
+        ce = c.compile_expression(ast)
+        self.assertEqual(ce.pre, [],)
+        self.assertEqual(ce.exp, '++i',)
+
+        ast = parse('(dec i)')[0]
+        ce = c.compile_expression(ast)
+        self.assertEqual(ce.pre, [],)
+        self.assertEqual(ce.exp, '--i',)
+
+
+        ast = parse('(post-inc i)')[0]
+        ce = c.compile_expression(ast)
+        self.assertEqual(ce.pre, [],)
+        self.assertEqual(ce.exp, 'i++',)
+
+        ast = parse('(post-dec i)')[0]
+        ce = c.compile_expression(ast)
+        self.assertEqual(ce.pre, [],)
+        self.assertEqual(ce.exp, 'i--',)
+
 if __name__ == '__main__':
     unittest.main()
 
