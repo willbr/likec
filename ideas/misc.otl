@@ -1,86 +1,4 @@
-add tests
-
-cond
-switch
-address
-filter
-car
-not
-sizeof
-no main statement
-list functions over a new list (map {+ $ $} (List 1 2 3))
-
-;;;;
-
 mark functions as called and only include those in the output
-
-;;;;
-
-Linus says Typedef is probably bad
-
-remove Object Structure typedefs
-
-;;;;
-
-review standard code for cdr
-
-I think the ternary if statement is redundant.
-
-sould just return: l->next
-
-def cdr (l (* List))
-    return l->next
-
-;;;;
-
-parser; parse arguments into pairs
-
-def add (a int b int)
-=>
-(def add ((a int) (b int))
-
-;;;;
-
-parser; parse types parens
-
-move parsing types into lists from compiler into parser
-
-each (n int) (List 1 2 3)
-=>
-each (n (int)) (List 1 2 3)
-
-
-cast int 1
-=>
-(cast (int) 1)
-
-;;;;
-
-add list functions
-
-reverse
-length
-zip
-max
-min
-every
-some
-contains
-all
-some
-none
-find
-first
-initial
-last
-rest
-flatten
-
-remove odd '(1 2 3 4 5 6 7)
-=> '(2 4 6)
-
-keep odd '(1 2 3 4 5 6 7)
-=> '(1 3 5 7)
 
 ;;;;
 
@@ -92,22 +10,6 @@ odd:car '(1 2 3)
 
 ;;;;
 
-Stack
-
-push
-pop
-
-= a (Stack)
-.push a 5
-a.push 4
-a push 3
-
-a pop
-
-a pop type
-
-;;;;
-
 replace `for in list` with each
 
 each (n int) (List 1 2 3 4)
@@ -115,84 +17,18 @@ each (n int) (List 1 2 3 4)
 
 ;;;;
 
-copy clojurescript javascript method calls
-
-= a (List)
-.append a
-:append a
-
-or even?
-
-a.append 5
-a append 5
-
-easier to type
-having a dot makes it easier to know that a is an Object and not a
-function
-
-;;;;
-
-
-use , to escape lexp calls
+use $ to escape lexp calls
 
 puts
-    ,"hello world"
-
+    $ "hello world"
 =>
-
 (puts "hello world")
 
-and not
-(puts ("hello world")
 
-
-;;;;
-
-fix declare from moving rvalue of assignment to top with declare
-new variables should initialise to defualt type values
-
-;;;;
-
-
-below is really templates
-
-add macro map
-
-def double (n int) int
-    return (* n 2)
-
-= a (List 1 2 3)
-= b (map double a)
-
-macro map (f (fn (any) any) old-list List) List
-    = new-list (List)
-    for (n (return-type f)) in old-list
-        append (f n) to new-list
-    return new-list
-
+puts
+    "hello world"
 =>
-
-def macro_map_1234 (f (fn (int) int) old-list List) List
-    = new-list (List)
-    for (n int) in old-list
-        append (f n) to new-list
-    return new-list
-
-= a (List 1 2 3)
-= b (macro_map_1234 double a)
-
-=> or if it only has a single return value at the end
-
-= a (List 1 2 3)
-= macro__new-list1234 (List)
-for (n int) in a
-    append (double n) to macro__new-list1234
-= b macro__new-list1234
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-add global variables
+(puts ("hello world")
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
@@ -203,77 +39,6 @@ play with const
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-add Structs
-not a pointer unlike objects
-have one method; a constructor called new
-
-struct Point
-    x int
-    y int
-
-    def new (x int y int) Point
-        @x = x
-        @y = y
-        return @
-
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;;
-
-add strings as an object
-
-change main definition
-    def main (args List) int
-        return 0
-
-obj String
-    length size_t
-    data (* char)
-
-    def new (s (* char))
-        = @length (+ (strlen s) 1)
-        = @data (malloc @length)
-        strncpy @data s @length
-
-    def die
-        free @data
-
-;;;;
-
-auto insert die method into objects
-
-;;;;
-
-add kill function to call die method
-
-= a (List)
-
-(kill a)
-=>
-(a die)
-
-;;;;
-
-Add Stack
-
-;;;;
-
-Add Hash / Dict
-
-;;;;
-
-move for ? in ?
-to
-each ? in ?
-or
-each ? ?
-
-;;;;
-
-write more tests
-
-;;;;
 
 (in a b)
 
@@ -286,80 +51,11 @@ a_evaled == [b 0] || a_evaled [b 1]
 
 ;;;;
 
-add CArray constructor
-
-;;;;
-
 prn "{} == {}" 1 2
 
 printf("%d == %d\n", 1, 2);
 
 ;;;;
 
-obj auto add die method
-
-def die
-    free @
-
-;;;;
-
-typed lists
-
-= a (List int 1 2 3)
-
----------------------
-a = Int_List_new(NULL)
-Int_List_append(a, 1)
-Int_List_append(a, 2)
-Int_List_append(a, 3)
-
-;;;;
-
-called void functions  return 0
-
-;;;;
-
-allow users to add methods to std objects
-
-;;;;
-
-allow users to monkey patch functions
-
-;;;;
-
-tokenize
-
-list->next->data
-=>
-(-> list next data)
-
-;;;;
-
-= a (List 1 2 3 4)
-
-prn a
-=>
-prn "{a repr}"
-
-call List method repr
-
-;;;;
-
 perform a code review of this project
-
-;;;;
-
-def test
-    return 5
-
-set function return turn as (expression-type (return 5))
-
-;;;;
-
-add shallow and deep versions of list functions
-map, filter, etc
-
-;;;;
-
-check for variable references before assignment
 
