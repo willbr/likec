@@ -434,12 +434,16 @@ class Compiler:
             *expressions
             ):
         pre = []
-        for expression in expressions:
+        for expression in expressions[:-1]:
             ce = self.compile_expression(expression)
             pre.extend(ce.pre)
             if ce.exp not in self.current_scope():
                 pre.append(ce.exp + ';')
-        final_expression = pre.pop()[:-1]
+
+        ce = self.compile_expression(expressions[-1])
+        pre.extend(ce.pre)
+        final_expression = ce.exp
+
         return CompiledExpression(
                 pre=pre,
                 exp=final_expression,

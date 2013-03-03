@@ -672,6 +672,35 @@ each n (range 10)
     (set i 0)
     (while (< i 5)
         (puts "hello")
+        (inc i)))
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'i = 0;',
+                    'while (i < 5) {',
+                    [
+                        'puts("hello");',
+                        'while1000 = (++i);',
+                        ],
+                    '}',
+                    ]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'while1000',
+                )
+
+    def test_compile_begin(self):
+        c = self.compiler
+        ast = parse('''
+(begin
+    (set i 0)
+    (while (< i 5)
+        (puts "hello")
         (inc i))
     0)
 ''')[0]
