@@ -422,6 +422,30 @@ puts "hello"
         with self.assertRaises(SyntaxError):
             c.compile_expression(ast)
 
+    def test_compile_while(self):
+        c = self.compiler
+        ast = parse('''
+(while 1
+  1)
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'while (1) {',
+                    [
+                        'while1000 = 1;',
+                        ],
+                    '}',
+                    ],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'while1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

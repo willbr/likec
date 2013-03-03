@@ -208,12 +208,17 @@ class Compiler:
                 'if': self.compile_if,
                 'cond': self.compile_cond,
                 'begin': self.compile_begin,
+                'while': self.compile_while,
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
                 '=': rewrite_match_id('==', self.compile_comparison),
                 '+': self.compile_addition_or_substitution,
                 '-': self.compile_addition_or_substitution,
+                'inc': rewrite_match_id('++', self.compile_prefix),
+                'dec': rewrite_match_id('--', self.compile_prefix),
+                'post_inc': rewrite_match_id('++', self.compile_suffix),
+                'post_dec': rewrite_match_id('--', self.compile_suffix),
                 }
 
         self.arithmetic_operators = '''
@@ -657,6 +662,17 @@ class Compiler:
                 exp=exp,
                 )
 
+    def compile_suffix(self, match_token,
+            exp,
+            ):
+        prefix = match_token.value
+        ce = self.compile_expression(exp)
+        exp='%s%s' % (ce.exp, prefix)
+        return CompiledExpression(
+                pre=ce.pre,
+                exp=exp,
+                )
+
     def print_includes(self):
         includes = set()
         includes.add('stdbool.h')
@@ -866,12 +882,40 @@ class Compiler:
                 'true',
                 'false',
                 'else',
+                'EOF',
                 ]:
             pass
         elif match_token.value not in self.current_scope():
             raise SyntaxError('reference before assignment: %s' % match_token.value)
         return CompiledExpression(
                 match_token.value,
+                )
+
+    @log_compile
+    def compile_while(self, match_token, predicate, *body):
+        return_variable = fake_id(self.genvar('while'))
+
+        ce_predicate = self.compile_expression(predicate)
+
+        while_body = []
+        for expression in body[:-1]:
+            ce = self.compile_expression(expression)
+            while_body.extend(ce.pre)
+            while_body.append(ce.exp + ';')
+
+        ce_return = self.compile_assignment(fake_id('set'), return_variable, body[-1])
+        while_body.extend(ce_return.compile())
+        while_body.extend(ce_predicate.pre)
+
+        pre = ce_predicate.pre + [
+                'while (%s) {' % ce_predicate.exp,
+                while_body,
+                '}',
+                ]
+
+        return CompiledExpression(
+                pre=pre,
+                exp=return_variable.value,
                 )
 
 
