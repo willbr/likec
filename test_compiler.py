@@ -637,6 +637,36 @@ puts "hello"
                 'case1000',
                 )
 
+    def test_compile_each(self):
+        c = self.compiler
+        ast = parse('''
+each n (range 10)
+    printf "%d\n" n
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'n = 0;',
+                    'comp_exp1001 = n;',
+                    'comp_exp1002 = 10;',
+                    'while (comp_exp1001 < comp_exp1002) {',
+                    [
+                        'each1000 = (printf("%d\n", n));',
+                        'n += 1;',
+                        'comp_exp1001 = n;',
+                        'comp_exp1002 = 10;',
+                        ],
+                    '}',
+                    ]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'each1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

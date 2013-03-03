@@ -210,6 +210,7 @@ class Compiler:
                 'begin': self.compile_begin,
                 'while': self.compile_while,
                 'for': self.compile_for,
+                'each': self.compile_each,
                 'case': self.compile_case,
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
@@ -837,6 +838,7 @@ class Compiler:
                 exp=return_variable_name,
                 )
 
+    @log_compile
     def compile_addition_or_substitution(self, match_token, *operands):
         if len(operands) == 1:
             return self.compile_prefix(match_token, operands[0])
@@ -925,7 +927,7 @@ class Compiler:
             exit_exp,
             step_exp,
             *body):
-        return_variable = fake_id(self.genvar('for'))
+        return_variable = fake_id(self.genvar(match_token.value))
 
         ce_setup = self.compile_expression(setup_exp)
         ce_exit = self.compile_expression(exit_exp)
@@ -995,8 +997,34 @@ class Compiler:
                 pre=pre,
                 exp=return_variable.value,
                 )
+
+    @log_compile
+    def compile_each(self, match_token,
+            bind_token,
+            range_exp,
+            *body
+            ):
+
+        start, end, step = parse_range(*range_exp[1:])
+
+        init_exp = [fake_id('set'), bind_token, start]
+        limit_exp = [fake_id('<'), bind_token, end]
+        step_exp = [fake_id('+='), bind_token, step]
+
+        return self.compile_for(
+                match_token,
+                init_exp,
+                limit_exp,
+                step_exp,
+                *body
+                )
+
+
 def fake_id(value):
     return Token('ID', value, -1, -1)
+
+def fake_number(value):
+    return Token('NUMBER', value, -1, -1)
 
 def rewrite_match_id(new_value, fn):
     def wrapper(*args):
@@ -1005,8 +1033,15 @@ def rewrite_match_id(new_value, fn):
         return fn(head, *tail)
     return wrapper
 
+def parse_range(start, end=None, step=None):
+    step = step or fake_number('1')
+    if end is None:
+        end=start
+        start = fake_number('0')
+    return start, end, step
+
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()
