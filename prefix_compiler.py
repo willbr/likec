@@ -856,15 +856,24 @@ class Compiler:
         compiled_expressions = []
         variable_names = []
         for expression in expressions:
-            exp_var = fake_id(self.genvar('comp_exp'))
-            variable_names.append(exp_var.value)
-            ce = self.compile_assignment(
-                    match_token._replace(value='='),
-                    exp_var,
-                    expression,
-                    )
-            pre.extend(ce.compile())
-            compiled_expressions.append(ce)
+            if isinstance(expression, Token):
+                if expression.typ == 'ID':
+                    variable_names.append(
+                            self.compile_variable(expression).exp
+                            )
+                else:
+                    variable_names.append(expression.value)
+
+            else:
+                exp_var = fake_id(self.genvar('comp_exp'))
+                variable_names.append(exp_var.value)
+                ce = self.compile_assignment(
+                        match_token._replace(value='='),
+                        exp_var,
+                        expression,
+                        )
+                pre.extend(ce.compile())
+                compiled_expressions.append(ce)
 
         if len(expressions) > 2:
             format_s = '(%s %s %s)'

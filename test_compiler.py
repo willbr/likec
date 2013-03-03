@@ -131,9 +131,7 @@ puts "hello"
         self.assertEqual(
                 ce.pre,
                 [
-                    'comp_exp1001 = 1;',
-                    'comp_exp1002 = 2;',
-                    'if (comp_exp1001 < comp_exp1002) {',
+                    'if (1 < 2) {',
                     [
                         'if1000 = 1;',
                         ],
@@ -273,15 +271,12 @@ puts "hello"
 
         self.assertEqual(
                 ce.pre,
-                [
-                    'comp_exp1000 = 1;',
-                    'comp_exp1001 = 0;',
-                    ]
+                []
                 )
 
         self.assertEqual(
                 ce.exp,
-                'comp_exp1000 == comp_exp1001',
+                '1 == 0',
                 )
 
     def test_compile_infix_pre(self):
@@ -395,15 +390,12 @@ puts "hello"
 
         self.assertEqual(
                 ce.pre,
-                [
-                    'comp_exp1000 = 0;',
-                    'comp_exp1001 = 1;',
-                    ],
+                [],
                 )
 
         self.assertEqual(
                 ce.exp,
-                'comp_exp1000 < comp_exp1001',
+                '0 < 1',
                 )
 
     def test_comparison_operator_many_arguments(self):
@@ -413,18 +405,28 @@ puts "hello"
 
         self.assertEqual(
                 ce.pre,
-                [
-                    'comp_exp1000 = 0;',
-                    'comp_exp1001 = 1;',
-                    'comp_exp1002 = 2;',
-                    ],
+                [],
                 )
 
         self.assertEqual(
                 ce.exp,
-                '(comp_exp1000 < comp_exp1001) && (comp_exp1001 < comp_exp1002)',
+                '(0 < 1) && (1 < 2)',
                 )
 
+    def test_comparison_operator_many_arguments_expression(self):
+        c = self.compiler
+        ast = parse('(< 0 (+ 0 1) 2)')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                ['comp_exp1000 = (0 + 1);'],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '(0 < comp_exp1000) && (comp_exp1000 < 2)',
+                )
 
     def test_addition(self):
         c = self.compiler
@@ -466,6 +468,10 @@ puts "hello"
 
     def test_invalid_variable_reference(self):
         c = self.compiler
+
+        ast = parse('+ n 0')[0]
+        with self.assertRaises(SyntaxError):
+            c.compile_expression(ast)
 
         ast = parse('< n 0')[0]
         with self.assertRaises(SyntaxError):
@@ -534,14 +540,10 @@ puts "hello"
                 ce.pre,
                 [
                     'i = 1;',
-                    'comp_exp1001 = i;',
-                    'comp_exp1002 = 10;',
-                    'while (comp_exp1001 < comp_exp1002) {',
+                    'while (i < 10) {',
                     [
                         'for1000 = (printf("%d\n", i));',
                         '++i;',
-                        'comp_exp1001 = i;',
-                        'comp_exp1002 = 10;',
                         ],
                     '}',
                     ],
@@ -649,14 +651,10 @@ each n (range 10)
                 ce.pre,
                 [
                     'n = 0;',
-                    'comp_exp1001 = n;',
-                    'comp_exp1002 = 10;',
-                    'while (comp_exp1001 < comp_exp1002) {',
+                    'while (n < 10) {',
                     [
                         'each1000 = (printf("%d\n", n));',
                         'n += 1;',
-                        'comp_exp1001 = n;',
-                        'comp_exp1002 = 10;',
                         ],
                     '}',
                     ]
