@@ -210,6 +210,7 @@ class Compiler:
                 'begin': self.compile_begin,
                 'while': self.compile_while,
                 'for': self.compile_for,
+                'case': self.compile_case,
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
@@ -951,6 +952,48 @@ class Compiler:
                 exp=return_variable.value,
                 )
 
+    @log_compile
+    def compile_case(self, match_token,
+            select_exp,
+            *cases):
+        return_variable = fake_id(self.genvar('case'))
+
+        ce_select = self.compile_expression(select_exp)
+
+        case_body = []
+        for case, *exps in cases:
+            if case.value == 'default':
+                case_body.append('default:')
+            else:
+                case_body.append('case %s:' % case.value)
+            b = []
+            ce = self.compile_assignment(
+                    fake_id('set'),
+                    return_variable,
+                    [fake_id('begin')] + exps,
+                    )
+            b.extend(ce.compile())
+            b.append('break;')
+            case_body.append(b)
+
+        pre = ce_select.pre + [
+                'switch (%s) {' % ce_select.exp,
+                case_body,
+                '}',
+                ]
+
+        #ce_return = self.compile_assignment(fake_id('set'), return_variable, body[-1])
+
+        #pre = ce_setup.compile() + ce_exit.pre + [
+                #'while (%s) {' % ce_exit.exp,
+                #for_body,
+                #'}',
+                #]
+
+        return CompiledExpression(
+                pre=pre,
+                exp=return_variable.value,
+                )
 def fake_id(value):
     return Token('ID', value, -1, -1)
 

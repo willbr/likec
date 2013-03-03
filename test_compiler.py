@@ -552,6 +552,53 @@ puts "hello"
                 'for1000',
                 )
 
+
+    def test_compile_case(self):
+        c = self.compiler
+        ast = parse('''
+(case '1'
+  ('0' 0)
+  ('1' 1)
+  ('2' (+ 1 1))
+  (default -1))
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    "switch ('1') {",
+                    [
+                        "case '0':",
+                        [
+                            'case1000 = (0);',
+                            'break;',
+                            ],
+                        "case '1':",
+                        [
+                            'case1000 = (1);',
+                            'break;',
+                            ],
+                        "case '2':",
+                        [
+                            'case1000 = (1 + 1);',
+                            'break;',
+                            ],
+                        'default:',
+                        [
+                            'case1000 = (-1);',
+                            'break;',
+                            ],
+                    ],
+                    '}',
+                    ]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'case1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
