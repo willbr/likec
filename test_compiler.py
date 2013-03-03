@@ -256,6 +256,27 @@ puts "hello"
                 'comp_exp1000 == comp_exp1001',
                 )
 
+    def test_compile_infix_pre(self):
+        c = self.compiler
+        eq_ast = parse('(+ 1 (if 1 1 1))')[0]
+        ce = c.compile_expression(eq_ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'if (1) {',
+                    ['if1000 = 1;'],
+                    '} else {',
+                    ['if1000 = 1;'],
+                    '}',
+                    ]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '1 + (if1000)',
+                )
+
     def test_compile_variable(self):
         c = self.compiler
 

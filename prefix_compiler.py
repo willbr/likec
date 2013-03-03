@@ -733,7 +733,7 @@ class Compiler:
         for op in operands:
             ce = self.compile_expression(op)
             if ce.pre:
-                pre.append(ce.pre)
+                pre.extend(ce.pre)
             if isinstance(op, Token):
                 exps.append(ce.exp)
             else:
@@ -901,8 +901,7 @@ class Compiler:
         while_body = []
         for expression in body[:-1]:
             ce = self.compile_expression(expression)
-            while_body.extend(ce.pre)
-            while_body.append(ce.exp + ';')
+            while_body.extend(ce.compile())
 
         ce_return = self.compile_assignment(fake_id('set'), return_variable, body[-1])
         while_body.extend(ce_return.compile())
