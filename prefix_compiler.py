@@ -755,9 +755,9 @@ class Compiler:
     def compile_if(self, match_token,
             predicate,
             consequent,
-            alternative,
+            alternative=None,
             ):
-
+        alternative = alternative or Token('NUMBER', '0', -1, -1)
         pre = []
         return_variable_name = self.genvar('if')
         return_variable = Token(

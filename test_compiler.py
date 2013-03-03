@@ -152,6 +152,34 @@ puts "hello"
         self.assertTrue(
                 'if1000' in c.current_scope(),
                 )
+
+    def test_compile_if_default_alternative(self):
+        c = self.compiler
+        ast = parse('(if 1 1)')[0]
+        ce = c.compile_if(*ast)
+        self.assertEqual(
+                ce.pre,
+                [
+                    'if (1) {',
+                    [
+                        'if1000 = 1;',
+                        ],
+                    '} else {',
+                    [
+                        'if1000 = 0;',
+                        ],
+                    '}',
+                    ],
+                )
+        self.assertEqual(
+                ce.exp,
+                'if1000',
+                )
+
+        self.assertTrue(
+                'if1000' in c.current_scope(),
+                )
+
     def test_compile_cond(self):
         c = self.compiler
         ast = parse('''
