@@ -437,7 +437,8 @@ class Compiler:
         for expression in expressions:
             ce = self.compile_expression(expression)
             pre.extend(ce.pre)
-            pre.append(ce.exp + ';')
+            if ce.exp not in self.current_scope():
+                pre.append(ce.exp + ';')
         final_expression = pre.pop()[:-1]
         return CompiledExpression(
                 pre=pre,
