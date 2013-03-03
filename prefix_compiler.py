@@ -966,15 +966,16 @@ class Compiler:
                 case_body.append('default:')
             else:
                 case_body.append('case %s:' % case.value)
-            b = []
-            ce = self.compile_assignment(
-                    fake_id('set'),
-                    return_variable,
-                    [fake_id('begin')] + exps,
-                    )
-            b.extend(ce.compile())
-            b.append('break;')
-            case_body.append(b)
+            if exps:
+                b = []
+                ce = self.compile_assignment(
+                        fake_id('set'),
+                        return_variable,
+                        [fake_id('begin')] + exps,
+                        )
+                b.extend(ce.compile())
+                b.append('break;')
+                case_body.append(b)
 
         pre = ce_select.pre + [
                 'switch (%s) {' % ce_select.exp,
@@ -1005,7 +1006,7 @@ def rewrite_match_id(new_value, fn):
     return wrapper
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()

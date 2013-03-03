@@ -599,6 +599,44 @@ puts "hello"
                 'case1000',
                 )
 
+    def test_compile_case_fallthrough(self):
+        c = self.compiler
+        ast = parse('''
+(case '1'
+  ('0')
+  ('1')
+  ('2' 5)
+  (default -1))
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    "switch ('1') {",
+                    [
+                        "case '0':",
+                        "case '1':",
+                        "case '2':",
+                        [
+                            'case1000 = (5);',
+                            'break;',
+                            ],
+                        'default:',
+                        [
+                            'case1000 = (-1);',
+                            'break;',
+                            ],
+                    ],
+                    '}',
+                    ]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'case1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 
