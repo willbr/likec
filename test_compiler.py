@@ -473,6 +473,36 @@ puts "hello"
         self.assertEqual(ce.pre, [],)
         self.assertEqual(ce.exp, 'i--',)
 
+    def test_compile_for(self):
+        c = self.compiler
+        ast = parse('''
+(for (set i 1) (< i 10) (inc i)
+  (printf "%d\n" i))
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                [
+                    'i = 1;',
+                    'comp_exp1001 = i;',
+                    'comp_exp1002 = 10;',
+                    'while (comp_exp1001 < comp_exp1002) {',
+                    [
+                        'for1000 = (printf("%d\n", i));',
+                        '++i;',
+                        'comp_exp1001 = i;',
+                        'comp_exp1002 = 10;',
+                        ],
+                    '}',
+                    ],
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'for1000',
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -209,6 +209,7 @@ class Compiler:
                 'cond': self.compile_cond,
                 'begin': self.compile_begin,
                 'while': self.compile_while,
+                'for': self.compile_for,
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
@@ -918,6 +919,38 @@ class Compiler:
                 exp=return_variable.value,
                 )
 
+    @log_compile
+    def compile_for(self, match_token,
+            setup_exp,
+            exit_exp,
+            step_exp,
+            *body):
+        return_variable = fake_id(self.genvar('for'))
+
+        ce_setup = self.compile_expression(setup_exp)
+        ce_exit = self.compile_expression(exit_exp)
+        ce_step = self.compile_expression(step_exp)
+
+        for_body = []
+        for expression in body[:-1]:
+            ce = self.compile_expression(expression)
+            for_body.extend(ce.compile())
+
+        ce_return = self.compile_assignment(fake_id('set'), return_variable, body[-1])
+        for_body.extend(ce_return.compile())
+        for_body.extend(ce_step.compile())
+        for_body.extend(ce_exit.pre)
+
+        pre = ce_setup.compile() + ce_exit.pre + [
+                'while (%s) {' % ce_exit.exp,
+                for_body,
+                '}',
+                ]
+
+        return CompiledExpression(
+                pre=pre,
+                exp=return_variable.value,
+                )
 
 def fake_id(value):
     return Token('ID', value, -1, -1)
