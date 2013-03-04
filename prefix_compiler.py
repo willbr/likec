@@ -203,6 +203,7 @@ class Compiler:
         self.genvar_counter = 1000
 
         self.keyword_compile_functions = {
+                '$': self.compile_identity,
                 'def': self.compile_def,
                 'set'  : self.compile_assignment,
                 'if': self.compile_if,
@@ -1080,6 +1081,12 @@ class Compiler:
                 pre=pre,
                 exp=ce_in.exp,
                 )
+
+    @log_compile
+    def compile_identity(self, match_token,
+            variable_token,
+            ):
+        return self.compile_expression(variable_token)
 
 def fake_id(value):
     return Token('ID', value, -1, -1)

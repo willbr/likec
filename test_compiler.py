@@ -792,6 +792,24 @@ in (+ 'a' 1) "abc"
                 "(in1000 == 'a') || (in1000 == 'b') || (in1000 == 'c')"
                 )
 
+    def test_compile_identity(self):
+        c = self.compiler
+        ast = parse('''
+puts
+    $ "hello"
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                []
+                )
+
+        self.assertEqual(
+                ce.exp,
+                'puts("hello")'
+                )
+        
 if __name__ == '__main__':
     unittest.main()
 
