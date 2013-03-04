@@ -22,7 +22,13 @@ exit /b %ERRORLEVEL%
 
 :g
 :gcc
-    call :compile %1 > out.c && gcc -Wall -Wextra -Wno-unused-value -Wno-unused-parameter -g out.c
+    call :compile %1 > out.c && gcc ^
+    -Wall^
+    -Wextra^
+    -Wno-unused-value^
+    -Wno-unused-parameter^
+    -Wno-unused-but-set-variable^
+    -g out.c
     exit /b %ERRORLEVEL%
 
 :r
