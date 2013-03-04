@@ -7,7 +7,7 @@ import re
 import logging
 import pdb
 
-from prefix_parser import ast, map_tree_to_values
+from prefix_parser import ast, map_tree_to_values, map_tree
 from prefix_tokenizer import Token
 from sys import argv
 
@@ -66,17 +66,29 @@ def parse_type(type_expression):
 def is_uppercase(c):
     return c in string.ascii_uppercase
 
-def indent(elem, level=0):
-    if isinstance(elem, str):
-        print (('    ' * level) + elem)
-    elif elem == None:
-        pass
-    else:
-        for e in elem:
-            if isinstance(e, list):
-                indent(e, level + 1)
-            else:
-                indent(e, level)
+#def indent(elem, level=0):
+    #if isinstance(elem, str):
+        #print (('    ' * level) + elem)
+    #elif elem == None:
+        #pass
+    #else:
+        #for e in elem:
+            #if isinstance(e, list):
+                #indent(e, level + 1)
+            #else:
+                #indent(e, level)
+
+def indent(tree):
+    for elem in indent_code(tree):
+        print(elem)
+
+def indent_code(tree, level=-1):
+    if isinstance(tree, str):
+        yield (('    ' * level) + tree)
+    elif isinstance(tree, list):
+        for branch in tree:
+            for leaf in indent_code(branch, level + 1):
+                yield leaf
 
 def grouper(n, iterable, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -174,14 +186,22 @@ class Function:
 class Variable:
 
     def __init__(self,
-            variable_name,
-            variable_type,
-            variable_scope,
+            name,
+            typ,
+            scope,
+            macro_code=None,
             ):
-        self.name = variable_name
-        self.type = variable_type
-        self.scope = variable_scope
+        self.name = name
+        self.type = typ
+        self.scope = scope
+        self.macro_code = macro_code
 
+    def __repr__(self):
+        s = [self.__class__.__name__]
+        s.append(str(self.name))
+        s.append(str(self.type))
+        s.append(str(self.scope))
+        return '<%s>' % ' '.join(s)
 
 class Compiler:
 
@@ -204,6 +224,7 @@ class Compiler:
 
         self.keyword_compile_functions = {
                 '$': self.compile_identity,
+                'macro': self.compile_macro_definition,
                 'def': self.compile_def,
                 'set'  : self.compile_assignment,
                 'if': self.compile_if,
@@ -374,6 +395,8 @@ class Compiler:
             func_name = token_func_name.value
             if func_name in self.keyword_compile_functions.keys():
                 return self.keyword_compile_functions[func_name](*statements)
+            elif self.is_a_macro(func_name):
+                return self.compile_macro(*statements)
             else:
                 return self.compile_call(*statements)
 
@@ -580,7 +603,7 @@ class Compiler:
                 *exps
                 )
 
-    def declare(self, lexp, rexp, scope='local'):
+    def declare(self, lexp, rexp, scope='local', macro_code=None):
         variable_name = self.root_variable(lexp)
         if variable_name not in self.current_scope():
             et = self.expression_type(rexp)
@@ -588,6 +611,7 @@ class Compiler:
                     variable_name,
                     et,
                     scope,
+                    macro_code=macro_code,
                     )
 
     def root_variable(self, exp):
@@ -1088,6 +1112,68 @@ class Compiler:
             ):
         return self.compile_expression(variable_token)
 
+    @log_compile
+    def compile_macro_definition(self, match_token,
+            name_token,
+            arguments,
+            *body
+            ):
+        self.declare(
+                name_token,
+                'macro',
+                'macro',
+                macro_code=(name_token, arguments, body),
+                )
+        return self.compile_expression(fake_id('true'))
+
+    @log_compile
+    def compile_macro(self, match_token,
+            *call_arguments
+            ):
+        macro_name = match_token.value
+        _, arguments, body = self.current_scope()[macro_name].macro_code
+
+        expanded_body = [fake_id('begin')]
+        argument_map = {}
+
+        assert(len(call_arguments) == len(arguments))
+
+        for macro_arg, call_arg in zip(arguments, call_arguments):
+            assert(macro_arg.typ == 'ID')
+            argument_name = macro_arg.value
+            arg_var = fake_id(self.genvar(
+                'macro',
+                macro_name,
+                argument_name,
+                ))
+            argument_instance = arg_var.value
+            argument_map[argument_name] = argument_instance
+            expanded_body.append([
+                fake_id('set'),
+                arg_var,
+                call_arg,
+                ])
+
+        def r(a):
+            if a.typ == 'ID' and a.value in argument_map:
+                return a._replace(value=argument_map[a.value])
+            else:
+                return a
+
+        for statement in body:
+            expanded_body.append(map_tree(r, statement))
+
+        return self.compile_expression(expanded_body)
+
+    def is_a_macro(self, function_name):
+        try:
+            atom = self.current_scope()[function_name]
+            if atom.scope == 'macro':
+                return True
+        except KeyError:
+            pass
+        return False
+
 def fake_id(value):
     return Token('ID', value, -1, -1)
 
@@ -1096,6 +1182,9 @@ def fake_number(value):
 
 def fake_char(value):
     return Token('CHAR', "'%s'" % value, -1, -1)
+
+def fake_string(value):
+    return Token('STRING', '"%s"' % value, -1, -1)
 
 def rewrite_match_id(new_value, fn):
     def wrapper(*args):

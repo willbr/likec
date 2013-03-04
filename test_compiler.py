@@ -1,7 +1,8 @@
 import unittest
+import textwrap
 from prefix_tokenizer import Token
 from prefix_parser import map_tree_to_values
-from prefix_compiler import Compiler, parse, parse_type
+from prefix_compiler import Compiler, parse, parse_type, indent_code
 
 
 def parse_to_values(code):
@@ -810,6 +811,55 @@ puts
                 'puts("hello")'
                 )
         
+    def test_compile_macro(self):
+        c = self.compiler
+        c.compile_code('''
+macro square (x)
+    * x x
+
+printf "%d\n" (square 2)
+$ 0
+''')
+        c.compile_main()
+        f = c.functions['main']
+
+        self.assertEqual(
+                f.compile(),
+                [
+                    'int main()',
+                    '{',
+                    [
+                        'int macro__square__x1000 = 0;',
+                        'true;',
+                        'macro__square__x1000 = 2;',
+                        'printf("%d\n", macro__square__x1000 * macro__square__x1000);',
+                        'return 0;',
+                        ],
+                    '}',
+                    ],
+                )
+
+    def test_indent_code(self):
+        code = [
+            'int main()',
+            '{',
+            [
+                'puts("hello");',
+                'return 0;',
+                ],
+            '}',
+            ]
+
+        indented_code = '\n'.join(indent_code(code))
+        
+        self.assertEqual(
+                indented_code, textwrap.dedent('''\
+                int main()
+                {
+                    puts("hello");
+                    return 0;
+                }'''))
+
 if __name__ == '__main__':
     unittest.main()
 
