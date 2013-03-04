@@ -529,6 +529,11 @@ puts "hello"
         self.assertEqual(ce.pre, [],)
         self.assertEqual(ce.exp, 'i--',)
 
+        ast = parse('(not (+ 1 1))')[0]
+        ce = c.compile_expression(ast)
+        self.assertEqual(ce.pre, [],)
+        self.assertEqual(ce.exp, '!(1 + 1)',)
+
     def test_compile_for(self):
         c = self.compiler
         ast = parse('''

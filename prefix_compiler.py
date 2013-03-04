@@ -692,7 +692,8 @@ class Compiler:
             ):
         prefix = match_token.value
         ce = self.compile_expression(exp)
-        exp='%s%s' % (prefix, ce.exp)
+        format_string = '%s%s' if isinstance(exp, Token) else '%s(%s)'
+        exp = format_string % (prefix, ce.exp)
         return CompiledExpression(
                 pre=ce.pre,
                 exp=exp,
