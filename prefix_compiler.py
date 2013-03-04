@@ -321,6 +321,8 @@ class Compiler:
             head = statement_ast[0].value
             if head == 'def':
                 self.register_function(statement_ast)
+            elif head == 'macro':
+                self.compile_macro_definition(*statement_ast)
 
     def register_function(self, ast):
         _, func_name_token, args, raw_return_type, *_ = ast
@@ -1131,7 +1133,7 @@ class Compiler:
             *call_arguments
             ):
         macro_name = match_token.value
-        _, arguments, body = self.current_scope()[macro_name].macro_code
+        _, arguments, body = self.lookup_variable(macro_name).macro_code
 
         expanded_body = [fake_id('begin')]
         argument_map = {}
@@ -1166,13 +1168,16 @@ class Compiler:
         return self.compile_expression(expanded_body)
 
     def is_a_macro(self, function_name):
-        try:
-            atom = self.current_scope()[function_name]
-            if atom.scope == 'macro':
-                return True
-        except KeyError:
-            pass
-        return False
+        atom = self.lookup_variable(function_name)
+        if atom is not None and atom.scope == 'macro':
+            return True
+        else:
+            return False
+
+    def lookup_variable(self, name):
+        for env in self.enviroment_stack[::-1]:
+            if name in env:
+                return env[name]
 
 def fake_id(value):
     return Token('ID', value, -1, -1)

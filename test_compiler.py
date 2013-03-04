@@ -839,6 +839,53 @@ $ 0
                     ],
                 )
 
+    def test_compile_global_macro(self):
+        c = self.compiler
+        c.compile_code('''
+def test
+    square 5
+    
+macro square (x)
+    * x x
+
+printf "%d\n" (square 2)
+$ 0
+''')
+        c.compile_main()
+        f = c.functions['main']
+
+        self.assertEqual(
+                f.compile(),
+                [
+                    'int main()',
+                    '{',
+                    [
+                        'int macro__square__x1001 = 0;',
+                        'true;',
+                        'macro__square__x1001 = 2;',
+                        'printf("%d\n", macro__square__x1001 * macro__square__x1001);',
+                        'return 0;',
+                        ],
+                    '}',
+                    ],
+                )
+
+        f = c.functions['test']
+
+        self.assertEqual(
+                f.compile(),
+                [
+                    'int test()',
+                    '{',
+                    [
+                        'int macro__square__x1000 = 0;',
+                        'macro__square__x1000 = 5;',
+                        'return macro__square__x1000 * macro__square__x1000;',
+                        ],
+                    '}',
+                    ],
+                )
+
     def test_indent_code(self):
         code = [
             'int main()',
