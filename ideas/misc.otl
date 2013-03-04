@@ -6,3 +6,27 @@ printf("%d == %d\n", 1, 2);
 
 perform a code review of this project
 
+;;;;
+
+(macro add (a b)
+  (+ a b))
+
+
+(add (+ 0 1) (+ 1 1))
+=>
+(begin
+  (set add_a (+ 0 1))
+  (set add_b (+ 1 1))
+  (+ add_a add_b))
+
+
+
+macro zero? (x)
+    = x 0
+
+macro positive? (x)
+    > x 0
+
+macro negative? (x)
+    < x 0
+
