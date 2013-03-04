@@ -724,6 +724,40 @@ each n (range 10)
                 '0',
                 )
 
+    def test_compile_in_range(self):
+        c = self.compiler
+        ast = parse('''
+in 1 (range 10)
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                []
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '(0 <= 1) && (1 < 10)',
+                )
+
+    def test_compile_in_string(self):
+        c = self.compiler
+        ast = parse('''
+in 'c' "abc"
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                []
+                )
+
+        self.assertEqual(
+                ce.exp,
+                "('c' == 'a') || ('c' == 'b') || ('c' == 'c')"
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

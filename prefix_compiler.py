@@ -212,6 +212,7 @@ class Compiler:
                 'for': self.compile_for,
                 'each': self.compile_each,
                 'case': self.compile_case,
+                'in': self.compile_in,
                 'not': rewrite_match_id('!', self.compile_prefix),
                 'and': rewrite_match_id('&&', self.compile_infix),
                 'or': rewrite_match_id('||', self.compile_infix),
@@ -1033,12 +1034,42 @@ class Compiler:
                 *body
                 )
 
+    @log_compile
+    def compile_in(self, match_token,
+            needle,
+            haystack,
+            ):
+
+        if isinstance(haystack, list):
+            start, end, step = parse_range(*haystack[1:])
+
+            body = []
+
+            body.append([fake_id('<='), start, needle])
+            body.append([fake_id('<'), needle, end])
+
+            return self.compile_infix(
+                    match_token._replace(value='&&'),
+                    *body
+                    )
+        else:
+            string_without_quotes = haystack.value[1:-1]
+            body = []
+            for char in string_without_quotes:
+                body.append([fake_id('='), needle, fake_char(char)])
+            return self.compile_infix(
+                    match_token._replace(value='||'),
+                    *body
+                    )
 
 def fake_id(value):
     return Token('ID', value, -1, -1)
 
 def fake_number(value):
     return Token('NUMBER', value, -1, -1)
+
+def fake_char(value):
+    return Token('CHAR', "'%s'" % value, -1, -1)
 
 def rewrite_match_id(new_value, fn):
     def wrapper(*args):
@@ -1055,7 +1086,7 @@ def parse_range(start, end=None, step=None):
     return start, end, step
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()
