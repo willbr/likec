@@ -758,6 +758,40 @@ in 'c' "abc"
                 "('c' == 'a') || ('c' == 'b') || ('c' == 'c')"
                 )
 
+    def test_compile_exp_in_range(self):
+        c = self.compiler
+        ast = parse('''
+in (+ 1 2) (range 10)
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                ['in1000 = (1 + 2);']
+                )
+
+        self.assertEqual(
+                ce.exp,
+                '(0 <= in1000) && (in1000 < 10)',
+                )
+
+    def test_compile_exp_in_string(self):
+        c = self.compiler
+        ast = parse('''
+in (+ 'a' 1) "abc"
+''')[0]
+        ce = c.compile_expression(ast)
+
+        self.assertEqual(
+                ce.pre,
+                ["in1000 = ('a' + 1);"]
+                )
+
+        self.assertEqual(
+                ce.exp,
+                "(in1000 == 'a') || (in1000 == 'b') || (in1000 == 'c')"
+                )
+
 if __name__ == '__main__':
     unittest.main()
 

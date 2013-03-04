@@ -1036,9 +1036,20 @@ class Compiler:
 
     @log_compile
     def compile_in(self, match_token,
-            needle,
+            raw_needle,
             haystack,
             ):
+
+        if isinstance(raw_needle, list):
+            needle = fake_id(self.genvar('in'))
+            ce_needle = self.compile_assignment(
+                    fake_id('set'),
+                    needle,
+                    raw_needle,
+                    )
+        else:
+            needle = raw_needle
+            ce_needle = None
 
         if isinstance(haystack, list):
             start, end, step = parse_range(*haystack[1:])
@@ -1048,7 +1059,7 @@ class Compiler:
             body.append([fake_id('<='), start, needle])
             body.append([fake_id('<'), needle, end])
 
-            return self.compile_infix(
+            ce_in = self.compile_infix(
                     match_token._replace(value='&&'),
                     *body
                     )
@@ -1057,10 +1068,18 @@ class Compiler:
             body = []
             for char in string_without_quotes:
                 body.append([fake_id('='), needle, fake_char(char)])
-            return self.compile_infix(
+            ce_in = self.compile_infix(
                     match_token._replace(value='||'),
                     *body
                     )
+        pre = []
+        if ce_needle:
+            pre.extend(ce_needle.compile())
+        pre.extend(ce_in.pre)
+        return CompiledExpression(
+                pre=pre,
+                exp=ce_in.exp,
+                )
 
 def fake_id(value):
     return Token('ID', value, -1, -1)
@@ -1086,7 +1105,7 @@ def parse_range(start, end=None, step=None):
     return start, end, step
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
     #pc.add_standard_code()
