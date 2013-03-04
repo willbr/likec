@@ -1,0 +1,9 @@
+macro zero? (n)
+    = n 0
+
+macro positive? (n)
+    > n 0
+
+macro negative? (n)
+    < n 0
+

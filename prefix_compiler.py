@@ -1210,7 +1210,7 @@ if __name__ == '__main__':
     #logging.basicConfig(level=logging.INFO)
     script_name, input_filename = argv
     pc = Compiler()
-    #pc.add_standard_code()
+    pc.add_standard_code()
     pc.add_file(input_filename)
     pc.compile()
     pc.write_output()
